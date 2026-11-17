@@ -106,6 +106,11 @@
   #topsearch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1002; width: min(420px, calc(100% - 330px)); }
   #topsearch input { background: var(--panel); border-color: var(--line); border-radius: 99px; padding: 9px 34px 9px 16px; box-shadow: 0 2px 10px #0008; }
   #searchClear { position: absolute; right: 6px; top: 5px; border: 0; background: none; color: var(--dim); padding: 3px 8px; font-size: 15px; display: none; }
+  #qf { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+  #qf button { font-size: 11.5px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--text, inherit); box-shadow: 0 2px 6px #0006; cursor: pointer; }
+  #qf button:hover { border-color: #e2a93b; }
+  #qf button.on { background: #e2a93b; border-color: #e2a93b; color: #111; font-weight: 600; }
+  #qf .n { opacity: .7; margin-left: 3px; font-weight: 400; }
   #results { display: none; margin-top: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px; max-height: min(60vh, 420px); overflow-y: auto; box-shadow: 0 6px 20px #000a; }
   #results.show { display: block; }
   #results .item.sel { background: var(--panel2); }
@@ -410,6 +415,7 @@
   <div id="topsearch">
     <input id="search" type="search" placeholder="Search markers, towns, loot, or coords: 9630 4080" autocomplete="off" aria-label="Search the map">
     <button id="searchClear" aria-label="Clear search">✕</button>
+    <div id="qf" role="group" aria-label="Quick filters"></div>
     <div id="results"></div>
   </div>
   <div id="hint"><span id="hintText"></span><button id="hintDone">Done</button><button id="hintCancel">Cancel</button></div>
@@ -947,9 +953,27 @@ function canEdit(f) {
   if (m.vis !== 'private' && m.fac && m.fac === myFac) return true;
   return m.vis === 'server' && isAdmin();
 }
+// quick filter chips under the search bar; all the ones that are on must match
+const QF = [
+  { id: 'enemy', name: '⚔️ Enemy', test: f => ['enemy', 'sighting', 'danger', 'raid', 'trap'].includes(catOf(f).id) },
+  { id: 'mine', name: '👤 Mine', online: true, test: f => f.$?.owner === me?.id },
+  { id: 'today', name: '🕒 Updated today', test: f => (f.updated || 0) >= new Date().setHours(0, 0, 0, 0) },
+  { id: 'notes', name: '📝 Has notes', test: f => !!(f.notes && f.notes.trim()) || [...notes.values()].some(n => n.feature_id === f.id) },
+];
+const qf = new Set();
+function renderQF() {
+  const box = $('qf'); box.replaceChildren();
+  for (const q of QF) {
+    if (q.online && !ONLINE) { qf.delete(q.id); continue; }
+    const n = [...feats.values()].filter(f => !hidden.has(catOf(f).id) && q.test(f)).length;
+    box.append(el('button', { type: 'button', className: qf.has(q.id) ? 'on' : '', title: qf.has(q.id) ? 'Click to turn off' : 'Show only these',
+      onclick: () => { qf.has(q.id) ? qf.delete(q.id) : qf.add(q.id); renderAll(); } }, q.name, el('span', { className: 'n', textContent: n })));
+  }
+}
 function shown(f) {
   const m = f.$ || {};
   if (hidden.has(catOf(f).id)) return false;
+  for (const id of qf) if (!QF.find(q => q.id === id).test(f)) return false;
   if (m.vis === 'private') return visFilter.mine;
   if (!ONLINE || (m.fac && m.fac === myFac) || m.owner === me?.id) return visFilter.faction;
   return visFilter.others;
@@ -1451,6 +1475,7 @@ function setShape(s) {
   for (const b of $('shapeSeg').children) b.classList.toggle('on', b.dataset.shape === s);
 }
 function refreshSide() {
+  renderQF();
   const counts = {};
   for (const f of feats.values()) counts[catOf(f).id] = (counts[catOf(f).id] || 0) + 1;
   const fl = $('filters'); fl.replaceChildren();
