@@ -1115,10 +1115,10 @@ function drawDraftShape() {
 }
 
 // ---------- edit handles: drag corners, drag the small dots to add a corner ----------
-let handles = null, vSel = -1, draftHist = [];
+let handles = null, vSel = -1, draftHist = [], polyRedo = [];
 const vIcon = (cls) => L.divIcon({ className: '', iconSize: [16, 16], iconAnchor: [8, 8], html: `<div class="vh ${cls || ''}"></div>` });
 function snapDraft() { return JSON.stringify({ points: draft.points, pos: draft.pos, radius: draft.radius }); }
-function pushDraftHist() { if (!draft) return; draftHist.push(snapDraft()); if (draftHist.length > 200) draftHist.shift(); }
+function pushDraftHist() { if (!draft) return; draftHist.push(snapDraft()); if (draftHist.length > 200) draftHist.shift(); draftRedo = []; }
 function setFromLL(q, c) { q[0] = clampW(Math.round(c.lng)); q[1] = clampW(Math.round(c.lat)); }
 // ---------- snapping while drawing: corners of other areas, then their edges, then visible roads. Hold Alt to place freely ----------
 let snapOn = ls.get('fm:snap', true), snapRing = null;
@@ -1215,18 +1215,26 @@ function renderHandles() {
     }
   }
 }
-function undoDraft() {
-  const s = draftHist.pop(); if (!s || !draft) return false;
+let draftRedo = [];
+function loadDraftSnap(s) {
   const o = JSON.parse(s);
   if (o.points) draft.points = o.points; if (o.pos) draft.pos = o.pos; if (o.radius) { draft.radius = o.radius; $('fRadius').value = o.radius; }
-  vSel = -1; renderDraft(); return true;
+  vSel = -1; renderDraft();
+}
+function undoDraft() {
+  const s = draftHist.pop(); if (!s || !draft) return false;
+  draftRedo.push(snapDraft()); loadDraftSnap(s); return true;
+}
+function redoDraft() {
+  const s = draftRedo.pop(); if (!s || !draft) return false;
+  draftHist.push(snapDraft()); loadDraftSnap(s); return true;
 }
 
-// ---------- undo of saved changes (Backspace / Ctrl+Z) ----------
-const undoStack = [];
+// ---------- undo / redo of saved changes (Backspace or Ctrl+Z / Shift+Backspace or Ctrl+Y) ----------
+const undoStack = [], redoStack = [];
 const clone = o => o ? JSON.parse(JSON.stringify(o)) : null;
 let histGroup = null;   // while set, record() collects into one undo step (bulk edits)
-function pushHist(h) { undoStack.push(h); if (undoStack.length > 100) undoStack.shift(); }
+function pushHist(h, keepRedo) { undoStack.push(h); if (undoStack.length > 100) undoStack.shift(); if (!keepRedo) redoStack.length = 0; }
 function record(before, after) {
   const h = { before: clone(before), after: clone(after) };
   if (histGroup) histGroup.push(h); else pushHist(h);
@@ -1235,22 +1243,31 @@ function histBatch(label, fn) {
   histGroup = [];
   try { fn(); } finally { const g = histGroup; histGroup = null; if (g.length) pushHist({ group: g, label }); }
 }
-function revertHist(h) {
-  if (!h.before) {   // it was created: remove it
-    removeLocal(h.after.id); store.remove(h.after.id);
-  } else {           // it was changed or deleted: put the old version back
-    const f = clone(h.before);
-    f.updated = Date.now();
-    f.$ = { ...(f.$ || {}), saved: feats.has(f.id) && !!f.$?.saved };
-    upsert(f, true);
-  }
+// put one item into the given state (null = gone)
+function setHistState(state, id) {
+  if (!state) { removeLocal(id); store.remove(id); return; }
+  const f = clone(state);
+  f.updated = Date.now();
+  f.$ = { ...(f.$ || {}), saved: feats.has(f.id) && !!feats.get(f.id).$?.saved };
+  upsert(f, true);
 }
+const histId = h => (h.before || h.after).id;
+const histTitle = h => featTitle(h.before || h.after);
 function undoSaved() {
   const h = undoStack.pop();
   if (!h) { toast('Nothing to undo'); return; }
-  if (h.group) { for (const x of [...h.group].reverse()) revertHist(x); toast(`Undid: ${h.label}`); drawSel(); return; }
-  revertHist(h);
-  toast(!h.before ? `Undid: added ${featTitle(h.after)}` : h.after ? `Undid changes to ${featTitle(h.before)}` : `Restored ${featTitle(h.before)}`);
+  redoStack.push(h);
+  if (h.group) { for (const x of [...h.group].reverse()) setHistState(x.before, histId(x)); toast(`Undid: ${h.label} · Shift+Backspace to redo`); drawSel(); return; }
+  setHistState(h.before, histId(h));
+  toast((!h.before ? `Undid: added ${histTitle(h)}` : h.after ? `Undid changes to ${histTitle(h)}` : `Restored ${histTitle(h)}`) + ' · Shift+Backspace to redo');
+}
+function redoSaved() {
+  const h = redoStack.pop();
+  if (!h) { toast('Nothing to redo'); return; }
+  pushHist(h, true);
+  if (h.group) { for (const x of h.group) setHistState(x.after, histId(x)); toast(`Redid: ${h.label}`); drawSel(); return; }
+  setHistState(h.after, histId(h));
+  toast(!h.before ? `Redid: added ${histTitle(h)}` : h.after ? `Redid changes to ${histTitle(h)}` : `Deleted ${histTitle(h)} again`);
 }
 
 // ---------- info panel (click anything you drew) ----------
@@ -1728,7 +1745,7 @@ map.on('click', e => {
   if (tool === 'place') {
     draft.pos = p; tool = null; setHint(''); renderDraft(); openForm();
   } else if (tool === 'poly') {
-    polyPts.push(snapPt(e.latlng, e.originalEvent)); drawPolyPreview();
+    polyPts.push(snapPt(e.latlng, e.originalEvent)); polyRedo = []; drawPolyPreview();
   } else if (tool === 'measure') {
     measurePts.push(p); drawMeasure();
   } else if (tool === 'nav') {
@@ -1884,10 +1901,19 @@ document.addEventListener('keydown', e => {
     || $('auth').classList.contains('show') || $('srvpick').classList.contains('show');
   if (typing) return;
   const formOpen = $('form').classList.contains('show');
-  // Backspace / Ctrl+Z: undo the last thing you did
-  if (e.key === 'Backspace' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z')) {
+  // Shift+Backspace / Ctrl+Y / Ctrl+Shift+Z: redo
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if ((e.key === 'Backspace' && e.shiftKey) || (mod && (k === 'y' || (k === 'z' && e.shiftKey)))) {
     e.preventDefault();
-    if (tool === 'poly') { polyPts.pop(); drawPolyPreview(); return; }
+    if (tool === 'poly') { if (polyRedo.length) { polyPts.push(polyRedo.pop()); drawPolyPreview(); } else toast('Nothing to redo'); return; }
+    if (tool) return;
+    if (formOpen) { if (!redoDraft()) toast('Nothing to redo on this one'); return; }
+    redoSaved(); return;
+  }
+  // Backspace / Ctrl+Z: undo the last thing you did
+  if (e.key === 'Backspace' || (mod && k === 'z')) {
+    e.preventDefault();
+    if (tool === 'poly') { if (polyPts.length) polyRedo.push(polyPts.pop()); drawPolyPreview(); return; }
     if (tool === 'measure') { measurePts.pop(); drawMeasure(); if (!measurePts.length) setHint('Measure: click points on the map', true); return; }
     if (tool === 'route' && draft) { $('rUndo').click(); return; }
     if (formOpen) { if (!undoDraft()) toast('Nothing to undo on this one yet'); return; }
@@ -2415,7 +2441,7 @@ function closeForm(silent) {
   if (!$('form').classList.contains('show')) return;
   $('form').classList.remove('show');
   if (tool === 'route') { tool = null; setHint(''); }
-  wpSel = -1; vSel = -1; draftHist = [];
+  wpSel = -1; vSel = -1; draftHist = []; draftRedo = [];
   const id = editingId; draft = null; editingId = null; renderDraft();
   if (id) renderFeature(id);
   if (!silent) document.body.classList.remove('open');
