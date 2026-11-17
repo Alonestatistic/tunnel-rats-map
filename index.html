@@ -143,7 +143,11 @@
   input[type=range] { padding: 0; border: 0; background: none; accent-color: var(--accent); }
   #routeBox .tip { color: var(--dim); font-size: 12px; margin: 6px 0 8px; }
   #routeInfo { font-weight: 600; margin-top: 10px; }
-  #hint { position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 1000; background: var(--accent); color: #1a1408; font-weight: 600; padding: 7px 14px; border-radius: 99px; display: none; max-width: 90%; text-align: center; box-shadow: 0 2px 10px #0008; }
+  #hintDims:not(:empty) { display: block; font-weight: 500; font-size: 12px; opacity: .85; margin-top: 1px; }
+  #fDims:not(:empty) { display: inline-block; margin: -2px 0 8px; padding: 3px 9px; border-radius: 99px; background: var(--panel2); border: 1px solid var(--line); font-size: 12.5px; font-weight: 600; }
+  #fDims span { font-weight: 400; color: var(--dim); }
+  /* sits under the search bar and filter chips, above everything on the map */
+  #hint { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); z-index: 1003; background: var(--accent); color: #1a1408; font-weight: 600; padding: 7px 14px; border-radius: 99px; display: none; max-width: 90%; text-align: center; box-shadow: 0 2px 10px #0008; }
   #hint button { margin-left: 8px; padding: 2px 8px; background: #1a1408; color: var(--text); border: 0; font-size: 12px; }
   #coords { position: absolute; left: 12px; bottom: 12px; z-index: 1000; background: #000b; padding: 4px 10px; border-radius: 6px; font-variant-numeric: tabular-nums; font-size: 13px; pointer-events: none; }
   #tools { position: absolute; right: 10px; top: 84px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
@@ -220,8 +224,6 @@
   .leaflet-tooltip.dimlbl { background: rgba(0,0,0,.72); border: 0; color: #fff; font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 4px; box-shadow: none; pointer-events: none; }
   .leaflet-tooltip.dimlbl::before { display: none; }
   .leaflet-tooltip.dimlbl.live { background: #e2a93b; color: #111; }
-  .leaflet-tooltip.dimlbl.area { background: rgba(20,20,24,.85); font-size: 12px; text-align: center; line-height: 1.25; padding: 3px 7px; }
-  .leaflet-tooltip.dimlbl.area span { font-weight: 400; opacity: .75; font-size: 10.5px; }
   #mselbar { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); z-index: 1001; display: none; align-items: center; gap: 6px;
     background: var(--panel); border: 1px solid #5fd3ff; border-radius: 10px; padding: 6px 8px; box-shadow: 0 6px 20px rgba(0,0,0,.5); white-space: nowrap; max-width: calc(100% - 24px); overflow-x: auto; }
   #mselbar.show { display: flex; }
@@ -308,6 +310,8 @@
     #announce { width: auto; left: 10px; right: 10px; transform: none; top: 84px; }
     #act { right: 10px; left: 10px; width: auto; top: 140px; }
     #mselbar { bottom: 12px; }
+    /* drawing hint: at the bottom on phones, clear of the zoom / layer / tool buttons */
+    #hint { top: auto; bottom: 34px; left: 10px; right: 10px; transform: none; max-width: none; border-radius: 14px; }
     /* item info and the edit form become a bottom sheet so the map stays visible above them */
     body.sheet #side { inset: auto 0 0 0; width: 100%; height: var(--sheetH, 52vh); transform: none; transition: height .2s; border-right: 0; border-top: 1px solid var(--line);
       border-radius: 14px 14px 0 0; box-shadow: 0 -8px 30px #000a; }
@@ -366,6 +370,7 @@
   <div id="scroll">
     <div id="form">
       <h2 id="formTitle">New marker</h2>
+      <div id="fDims"></div>
       <div class="dim" id="fTip" style="margin:-4px 0 6px"></div>
       <label for="fName">Name</label>
       <input id="fName" maxlength="60" autocomplete="off">
@@ -505,7 +510,7 @@
     <div id="qf" role="group" aria-label="Quick filters"></div>
     <div id="results"></div>
   </div>
-  <div id="hint"><span id="hintText"></span><button id="hintDone">Done</button><button id="hintCancel">Cancel</button></div>
+  <div id="hint"><span id="hintText"></span><span id="hintDims"></span><button id="hintDone">Done</button><button id="hintCancel">Cancel</button></div>
   <div id="tools">
     <button id="tNav" title="Road navigation: click a start and a destination">🧭 GPS</button>
     <button id="tLabels" class="on">Labels</button>
@@ -1324,6 +1329,7 @@ function drawDraftShape() {
 let dimLayer = null, polyCursor = null;
 function drawDims(pts, closed, cursor) {
   dimLayer?.remove(); dimLayer = null;
+  showDimTotals(pts, cursor);
   if (!pts || !pts.length) return;
   const g = dimLayer = L.layerGroup().addTo(map);
   const lbl = (p, txt, cls) => L.tooltip({ permanent: true, direction: 'center', className: 'dimlbl ' + (cls || ''), interactive: false }).setLatLng(ll(p)).setContent(txt).addTo(g);
@@ -1331,20 +1337,24 @@ function drawDims(pts, closed, cursor) {
   const segs = [];
   for (let i = 1; i < pts.length; i++) segs.push([pts[i - 1], pts[i]]);
   if (closed && pts.length >= 3) segs.push([pts.at(-1), pts[0]]);
+  // only edges long enough on screen to fit a label without crowding the corners
   for (const [a, b] of segs)
-    if (px(a).distanceTo(px(b)) > 46) lbl([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], fmtDist(Math.hypot(b[0] - a[0], b[1] - a[1])));
+    if (px(a).distanceTo(px(b)) > 90) lbl([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], fmtDist(Math.hypot(b[0] - a[0], b[1] - a[1])));
   if (cursor) {
     const last = pts.at(-1);
     L.polyline([ll(last), ll(cursor)], { color: '#fff', weight: 1.5, dashArray: '3 5', opacity: .9, interactive: false }).addTo(g);
     if (pts.length >= 2) L.polyline([ll(cursor), ll(pts[0])], { color: '#fff', weight: 1, dashArray: '2 6', opacity: .45, interactive: false }).addTo(g);
     lbl([(last[0] + cursor[0]) / 2, (last[1] + cursor[1]) / 2], fmtDist(Math.hypot(cursor[0] - last[0], cursor[1] - last[1])), 'live');
   }
-  const ring = cursor ? [...pts, cursor] : pts;
-  if (ring.length >= 3) {
-    const f = { kind: 'polygon', points: ring };
-    const c = centerOf(f);
-    lbl(c, `${fmtArea(areaOf(f))}<br><span>${fmtDist(perimOf(f))} around</span>`, 'area');
-  }
+}
+// area + perimeter go in the hint while drawing and in the form while editing, never on top of the map
+function showDimTotals(pts, cursor) {
+  const ring = pts ? (cursor ? [...pts, cursor] : pts) : [];
+  const f = { kind: 'polygon', points: ring };
+  const txt = ring.length >= 3 ? `${fmtArea(areaOf(f))} · ${fmtDist(perimOf(f))} around` : '';
+  $('hintDims').textContent = tool === 'poly' && txt ? txt : '';
+  const formOpen = $('form').classList.contains('show');
+  $('fDims').replaceChildren(...(formOpen && tool !== 'poly' && txt ? ['📐 ' + fmtArea(areaOf(f)), el('span', { textContent: ` · ${fmtDist(perimOf(f))} around` })] : []));
 }
 map.on('zoomend', () => { if (tool === 'poly') drawDims(polyPts, false, polyCursor); else if (draft?.kind === 'polygon' && $('form').classList.contains('show')) drawDims(draft.points, true); });
 
@@ -1843,6 +1853,7 @@ function goTo(p, label) {
 function setHint(text, showDone) {
   $('hint').style.display = text ? 'block' : 'none';
   $('hintText').textContent = text || '';
+  $('hintDims').textContent = '';
   $('hintDone').style.display = showDone ? '' : 'none';
   $('map').style.cursor = text ? 'crosshair' : '';
 }
