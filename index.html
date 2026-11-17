@@ -585,7 +585,10 @@ const rgbHex = a => '#' + a.map(v => Math.round(Math.max(0, Math.min(255, v))).t
 const mix = (c, to, t) => { const a = hexRgb(c), b = hexRgb(to); return rgbHex(a.map((v, i) => v + (b[i] - v) * t)); };
 const clampN = (v, lo, hi, d) => Number.isFinite(+v) && v !== null && v !== '' ? Math.max(lo, Math.min(hi, +v)) : d;
 const brOf = f => clampN(f.br, -0.6, 0.6, 0);
-const colorOf = f => { const c = baseColorOf(f), b = brOf(f); return b > 0 ? mix(c, '#ffffff', b) : b < 0 ? mix(c, '#000000', -b) : rgbHex(hexRgb(c)); };
+// "Colour areas by faction": zones are drawn in their faction's colour (the form still edits the item's own colour)
+let facColors = false;   // loaded from storage once `ls` exists, below
+const facColorOf = f => { const fac = f.$?.fac && factions.get(f.$.fac); return fac ? fac.color || (fac.flag && FLAG[fac.flag]?.c[0]) || null : null; };
+const colorOf = f => { const c = (facColors && isZone(f) && facColorOf(f)) || baseColorOf(f), b = brOf(f); return b > 0 ? mix(c, '#ffffff', b) : b < 0 ? mix(c, '#000000', -b) : rgbHex(hexRgb(c)); };
 const isZone = f => f.kind === 'circle' || f.kind === 'polygon';
 const opOf = f => clampN(f.op, 0, 1, isZone(f) ? 0.22 : 1);
 const fillOf = f => ['stripes', 'none'].includes(f.fill) ? f.fill : 'solid';
@@ -601,6 +604,7 @@ const ls = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
+facColors = ls.get('fm:facColors', false);
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.style.display = 'block';
   clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2800);
@@ -995,6 +999,7 @@ const feats = new Map();      // id -> feature (data + $: { vis, fac, owner, sav
 const layers = new Map();     // id -> leaflet layer
 let hidden = new Set(ls.get('fm:hidden', []));
 const sel = new Set();        // multi-selected feature ids
+let hiddenFac = new Set(ls.get('fm:hiddenFac', []));   // faction ids (or 'none') switched off in Show
 let visFilter = Object.assign({ mine: true, faction: true, others: true }, ls.get('fm:visf', {}));
 let labelsOn = ls.get('fm:labels', true);
 let tool = null;              // null | 'place' | 'poly' | 'measure' | 'route' | 'nav'
@@ -1038,6 +1043,7 @@ function shown(f) {
   const m = f.$ || {};
   if (hidden.has(catOf(f).id)) return false;
   for (const id of qf) if (!QF.find(q => q.id === id).test(f)) return false;
+  if (ONLINE && hiddenFac.size && hiddenFac.has(m.fac || 'none')) return false;
   if (m.vis === 'private') return visFilter.mine;
   if (!ONLINE || (m.fac && m.fac === myFac) || m.owner === me?.id) return visFilter.faction;
   return visFilter.others;
@@ -1598,6 +1604,28 @@ function refreshSide() {
     const cb = el('input', { type: 'checkbox', checked: !!visFilter[k] });
     cb.onchange = () => { visFilter[k] = cb.checked; ls.set('fm:visf', visFilter); renderAll(); };
     vf.append(el('label', {}, cb, t));
+  }
+  // each faction that has something on this map: tick to show, swatch = its colour
+  if (ONLINE) {
+    const per = new Map();
+    for (const f of feats.values()) { const k = f.$?.fac || 'none'; per.set(k, (per.get(k) || 0) + 1); }
+    const ids = [...per.keys()].sort((a, b) => (b === myFac) - (a === myFac) || (a === 'none') - (b === 'none') || facLabel(factions.get(a) || {}).localeCompare(facLabel(factions.get(b) || {})));
+    if (ids.length > 1 || (ids.length === 1 && ids[0] !== myFac)) {
+      vf.append(el('div', { className: 'dim', style: 'grid-column:1/-1;margin-top:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px', textContent: 'Factions' }));
+      for (const id of ids) {
+        const fac = factions.get(id);
+        const col = fac ? fac.color || (fac.flag && FLAG[fac.flag]?.c[0]) || '#888' : '#888';
+        const cb = el('input', { type: 'checkbox', checked: !hiddenFac.has(id) });
+        cb.onchange = () => { cb.checked ? hiddenFac.delete(id) : hiddenFac.add(id); ls.set('fm:hiddenFac', [...hiddenFac]); renderAll(); };
+        vf.append(el('label', { title: id === 'none' ? 'Items not tied to a faction' : '' }, cb,
+          el('span', { style: `display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;background:${col};border:1px solid #0008` }),
+          id === 'none' ? 'No faction' : facLabel(fac || { name: 'Unknown faction' }) + (id === myFac ? ' (you)' : ''),
+          el('span', { className: 'n', textContent: per.get(id) })));
+      }
+    }
+    const cc = el('input', { type: 'checkbox', checked: facColors });
+    cc.onchange = () => { facColors = cc.checked; ls.set('fm:facColors', facColors); renderAll(); miniRefresh(); };
+    vf.append(el('label', { style: 'grid-column:1/-1', title: 'Draw bases, territories and other areas in their faction’s colour' }, cc, '🎨 Colour areas by faction'));
   }
   refreshList();
 }
