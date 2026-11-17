@@ -79,6 +79,8 @@
   .pane { display: none; }
   .pane.show { display: block; }
   .formbtns { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+  /* Save / Cancel stay in reach however long the form gets */
+  #form .formbtns { position: sticky; bottom: -14px; z-index: 2; margin: 14px -14px -14px; padding: 10px 14px 14px; background: var(--panel); border-top: 1px solid var(--line); }
   #side footer { padding: 10px 14px; border-top: 1px solid var(--line); display: flex; gap: 6px; }
   #side footer button { flex: 1; font-size: 12px; }
   .card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
@@ -122,6 +124,7 @@
   #topsearch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1002; width: min(420px, calc(100% - 330px)); }
   #topsearch input { background: var(--panel); border-color: var(--line); border-radius: 99px; padding: 9px 34px 9px 16px; box-shadow: 0 2px 10px #0008; }
   #searchClear { position: absolute; right: 6px; top: 5px; border: 0; background: none; color: var(--dim); padding: 3px 8px; font-size: 15px; display: none; }
+  #search::-webkit-search-cancel-button { display: none; } /* the app has its own ✕ */
   #qf { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
   #qf button { font-size: 11.5px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--text, inherit); box-shadow: 0 2px 6px #0006; cursor: pointer; }
   #qf button:hover { border-color: #e2a93b; }
@@ -167,6 +170,9 @@
   #miniToggle { position: absolute; top: 2px; right: 2px; z-index: 500; padding: 0 6px; font-size: 12px; line-height: 18px; border-radius: 5px; background: rgba(0,0,0,.65); border: 0; color: #fff; cursor: pointer; }
   #miniWrap.off #miniToggle { top: 2px; right: 2px; }
   @media (max-width: 560px) { #miniWrap { display: none; } }
+  /* phones: map buttons go icon-only so they cover less of the map (names stay as tooltips) */
+  @media (max-width: 560px) { body.open:not(.sheet) #menu { left: auto; right: 4px; padding: 6px 9px; } body.open:not(.sheet) #menu .ml { display: none; }
+    #tools .tl { display: none; } #tools button { min-width: 40px; padding-left: 8px; padding-right: 8px; text-align: center; } }
   #actBadge.at { background: #3b8cff; }
   .note.tome { box-shadow: inset 3px 0 0 #3b8cff; }
   .mention { color: #7fb4ff; font-weight: 600; }
@@ -271,6 +277,14 @@
   .lbl { background: #000c; border: 0; color: #fff; font-size: 11px; padding: 0 5px; box-shadow: none; font-weight: 600; }
   .lbl::before { display: none; }
   .h2btn { float: right; text-transform: none; letter-spacing: 0; margin-left: 8px; }
+  .h2btns { float: right; text-transform: none; letter-spacing: 0; color: var(--dim); }
+  /* menu sections fold up: click the heading */
+  .sec > h2 { cursor: pointer; user-select: none; padding: 2px 0; }
+  .sec > h2::before { content: '▾'; display: inline-block; width: 13px; font-size: 10px; transition: transform .15s; }
+  .sec > h2:hover { color: var(--text); }
+  .sec.closed > h2::before { transform: rotate(-90deg); }
+  .sec.closed > .secb, .sec.closed > h2 .h2btn, .sec.closed > h2 .h2btns { display: none; }
+  .secn { font-weight: 400; letter-spacing: 0; opacity: .8; }
   .gridlbl { color: #fffb; font-size: 10px; text-shadow: 0 0 3px #000, 0 0 3px #000; white-space: nowrap; }
   .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel); color: var(--text); }
   .leaflet-popup-content { margin: 12px 14px; min-width: 190px; }
@@ -281,6 +295,11 @@
   .leaflet-control-layers { background: var(--panel); color: var(--text); border: 1px solid var(--line) !important; }
   .leaflet-control-layers label { margin: 0; font-size: 13px; color: var(--text); }
   .leaflet-control-layers input { width: auto; padding: 0; }
+  /* zoom buttons match the other map controls instead of Leaflet's white */
+  .leaflet-bar { border: 1px solid var(--line) !important; box-shadow: 0 1px 5px #0006 !important; }
+  .leaflet-bar a, .leaflet-bar a:hover { background: var(--panel); color: var(--text); border-bottom-color: var(--line); }
+  .leaflet-bar a:hover { background: var(--panel2); }
+  .leaflet-bar a.leaflet-disabled { background: var(--panel); color: var(--dim); opacity: .5; }
 
   .modal { position: fixed; inset: 0; z-index: 3000; background: #000c; display: none; place-items: center; padding: 16px; overflow-y: auto; }
   .modal.show { display: grid; }
@@ -320,6 +339,8 @@
     body.sheet #sheetGrip { display: block; }
     body.sheet #mselbar, body.sheet #miniWrap { display: none; }
   }
+  /* menu open on a narrow screen: activity goes beside it, clear of the map buttons */
+  @media (min-width: 561px) and (max-width: 760px) { body.open #act { left: 350px; right: 110px; top: 60px; } }
   #sheetGrip { display: none; flex: none; height: 22px; cursor: ns-resize; touch-action: none; position: relative; }
   #sheetGrip::before { content: ''; position: absolute; left: 50%; top: 8px; width: 44px; height: 5px; margin-left: -22px; border-radius: 3px; background: var(--line); }
   /* fingers: bigger corner handles (scaled so they stay centred on the corner) */
@@ -431,7 +452,7 @@
 
     <div id="panes">
       <section class="pane show" id="paneMap">
-        <h2>Add to map</h2>
+       <div class="sec" data-sec="add"><h2>Add to map</h2><div class="secb">
         <div class="seg" id="shapeSeg">
           <button data-shape="auto" title="Use each type's usual shape">Auto</button>
           <button data-shape="marker">Pin</button>
@@ -440,40 +461,48 @@
           <button data-shape="box" title="Drag a rectangle, then adjust its corners">Box</button>
         </div>
         <div id="palette"></div>
+       </div></div>
 
-        <h2>Quick views
+       <div class="sec" data-sec="list"><h2>Marker list <span class="secn" id="listN"></span></h2><div class="secb">
+        <div id="list"></div>
+       </div></div>
+
+       <div class="sec" data-sec="views"><h2>Quick views
           <button class="linkbtn h2btn" id="presetSave" title="Save which marker types and map info are on as a quick view">save current</button>
-        </h2>
+        </h2><div class="secb">
         <div id="presets"></div>
-        <h2>Saved spots
+       </div></div>
+       <div class="sec" data-sec="spots"><h2>Saved spots
           <button class="linkbtn h2btn" id="bmSave" title="Save the current view to the next free number (or press Shift+1…9)">save view</button>
-        </h2>
+        </h2><div class="secb">
         <div id="bms"><div class="dim" style="font-size:12px">Press Shift+1…9 to save the current view, then 1…9 to jump back.</div></div>
-        <div id="tplWrap" style="display:none">
-          <h2>Templates</h2>
+       </div></div>
+       <div class="sec" data-sec="tpl" id="tplWrap" style="display:none"><h2>Templates</h2><div class="secb">
           <div id="tpls" class="presets"></div>
-        </div>
+       </div></div>
 
-        <h2>Show</h2>
+       <div class="sec" data-sec="show" id="showSec"><h2>Show</h2><div class="secb">
         <div class="checks" id="visFilters"></div>
+       </div></div>
 
-        <h2>Marker types
-          <button class="linkbtn h2btn" id="allOn">all</button>
-          <button class="linkbtn h2btn" id="allOff">none</button>
-        </h2>
+       <div class="sec" data-sec="types"><h2>Marker types
+          <span class="h2btns"><button class="linkbtn" id="allOn">all</button> · <button class="linkbtn" id="allOff">none</button></span>
+        </h2><div class="secb">
         <div id="filters" class="checks"></div>
+       </div></div>
 
-        <h2>Map info
-          <button class="linkbtn h2btn" id="refAll">all</button>
-          <button class="linkbtn h2btn" id="refNone">none</button>
-        </h2>
+       <div class="sec" data-sec="info"><h2>Map info
+          <span class="h2btns"><button class="linkbtn" id="refAll">all</button> · <button class="linkbtn" id="refNone">none</button></span>
+        </h2><div class="secb">
         <div id="refs" class="checks"></div>
+       </div></div>
 
-        <h2>Map</h2>
+       <div class="sec" data-sec="map"><h2>Map</h2><div class="secb">
         <select id="mapSel" title="Switch the map you're viewing"></select>
         <div class="dim" id="mapNote" style="margin-top:4px"></div>
+       </div></div>
 
-        <h2>Settings</h2>
+       <div class="sec" data-sec="settings"><h2>Settings</h2><div class="secb">
         <label style="margin-top:0">Theme</label>
         <div class="seg" id="themeSeg">
           <button data-theme="dark">🌙 Dark</button>
@@ -485,9 +514,7 @@
         <label for="zoomSpeed">Scroll zoom speed: <span id="zoomSpeedVal"></span></label>
         <input id="zoomSpeed" type="range" min="0.25" max="4" step="0.25">
         <div class="checks" style="grid-template-columns:1fr;margin-top:8px"><label><input type="checkbox" id="trToggle"> Show English meanings of place names</label><label><input type="checkbox" id="hovToggle"> Preview cards when hovering markers</label><label><input type="checkbox" id="snapToggle"> Snap to roads and other areas while drawing (hold Alt to skip)</label></div>
-
-        <h2>Marker list</h2>
-        <div id="list"></div>
+       </div></div>
       </section>
       <section class="pane" id="paneFaction"></section>
       <section class="pane" id="paneServer"></section>
@@ -503,7 +530,7 @@
 
 <div id="mapwrap">
   <div id="map"></div>
-  <button id="menu">☰ Menu</button>
+  <button id="menu" aria-label="Menu">☰<span class="ml"> Menu</span></button>
   <div id="topsearch">
     <input id="search" type="search" placeholder="Search markers, towns, loot, or coords: 9630 4080" autocomplete="off" aria-label="Search the map">
     <button id="searchClear" aria-label="Clear search">✕</button>
@@ -512,12 +539,12 @@
   </div>
   <div id="hint"><span id="hintText"></span><span id="hintDims"></span><button id="hintDone">Done</button><button id="hintCancel">Cancel</button></div>
   <div id="tools">
-    <button id="tNav" title="Road navigation: click a start and a destination">🧭 GPS</button>
-    <button id="tLabels" class="on">Labels</button>
-    <button id="tGrid">Grid</button>
-    <button id="tMeasure">Measure</button>
-    <button id="tAct" title="What changed recently">🔔 Activity<span id="actBadge"></span></button>
-    <button id="tKeys" title="Keyboard shortcuts (?)">⌨️ Keys</button>
+    <button id="tNav" title="Road navigation: click a start and a destination">🧭<span class="tl"> GPS</span></button>
+    <button id="tLabels" class="on" title="Place names on the map">🏷️<span class="tl"> Labels</span></button>
+    <button id="tGrid" title="Map grid">#️⃣<span class="tl"> Grid</span></button>
+    <button id="tMeasure" title="Measure a distance">📏<span class="tl"> Measure</span></button>
+    <button id="tAct" title="What changed recently">🔔<span class="tl"> Activity</span><span id="actBadge"></span></button>
+    <button id="tKeys" title="Keyboard shortcuts (?)">⌨️<span class="tl"> Keys</span></button>
   </div>
   <div id="announce" role="status"><span class="ai">📌</span><div class="at"><div id="annText"></div><div id="annMeta" class="dim"></div></div><button id="annClose" title="Hide until it changes" aria-label="Hide">✕</button></div>
   <div id="miniWrap"><div id="mini"></div><button id="miniToggle" title="Hide the minimap">▾</button></div>
@@ -787,7 +814,7 @@ for (const [name, short] of MAPDEF.views) {
 }
 const baseNames = Object.keys(bases);
 (bases[ls.get('fm:base', 'Satellite')] || bases[baseNames[0]])?.addTo(map);
-if (baseNames.length > 1) L.control.layers(bases, null, { position: 'topright', collapsed: false }).addTo(map);
+if (baseNames.length > 1) L.control.layers(bases, null, { position: 'topright', collapsed: matchMedia('(max-width: 560px)').matches }) /* folded to an icon on phones */.addTo(map);
 map.on('baselayerchange', e => { ls.set('fm:base', e.name); miniBase(e.name); });
 // ---------- minimap: the whole map with your current view outlined; click or drag on it to move there ----------
 const mini = L.map('mini', { crs, zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
@@ -1120,6 +1147,8 @@ const factions = new Map(), profiles = new Map(), notes = new Map();
 let fmembers = [], smembers = [], invites = [], outInvites = [];
 let myFac = null, myFacRole = null;
 const uname = id => profiles.get(id) || (id ? 'player' : 'unknown');
+// " by <name>" for "Updated …" lines; nothing when it was saved as a guest (author 'unknown')
+const byWho = f => !f.author || f.author === 'unknown' ? '' : f.author === me?.username ? ' by you' : ' by ' + f.author;
 const isAdmin = () => myRole === 'owner' || myRole === 'admin';
 function canEdit(f) {
   const m = f.$ || {};
@@ -1150,8 +1179,9 @@ function shown(f) {
   if (hidden.has(catOf(f).id)) return false;
   for (const id of qf) if (!QF.find(q => q.id === id).test(f)) return false;
   if (ONLINE && hiddenFac.size && hiddenFac.has(m.fac || 'none')) return false;
+  if (!ONLINE) return true;
   if (m.vis === 'private') return visFilter.mine;
-  if (!ONLINE || (m.fac && m.fac === myFac) || m.owner === me?.id) return visFilter.faction;
+  if ((m.fac && m.fac === myFac) || m.owner === me?.id) return visFilter.faction;
   return visFilter.others;
 }
 function facLabel(fac) { return fac ? `${fac.tag ? '[' + fac.tag + '] ' : ''}${fac.name}` : ''; }
@@ -1264,7 +1294,7 @@ function hoverCard(f) {
   const ns = [...notes.values()].filter(n => n.feature_id === f.id).sort((a, b) => a.created_at < b.created_at ? 1 : -1);
   if (ns.length) box.append(el('div', { className: 'hn note ' + ns[0].vis }, el('b', { textContent: uname(ns[0].author) + ': ' }),
     ns[0].body.length > 120 ? ns[0].body.slice(0, 120) + '…' : ns[0].body, ns.length > 1 ? el('span', { className: 'dim', textContent: ` (+${ns.length - 1} more)` }) : ''));
-  box.append(el('div', { className: 'dim hf2', textContent: `Updated ${ago(f.updated || 0)}${f.author ? ' by ' + f.author : ''} · click for details` }));
+  box.append(el('div', { className: 'dim hf2', textContent: `Updated ${ago(f.updated || 0)}${byWho(f)} · click for details` }));
   return box;
 }
 function hoverShow(id, e) {
@@ -1528,6 +1558,7 @@ function openInfo(id) {
   infoId = id; renderInfo();
   $('info').classList.add('show'); $('scroll').scrollTop = 0;
   document.body.classList.add('open');
+  revealAboveSheet(feats.get(id));
 }
 function closeInfo() { infoId = null; $('info').classList.remove('show'); $('info').replaceChildren(); }
 function compoundsOf(id) { return [...feats.values()].filter(c => c.cat === 'compound' && c.parent === id).sort((a, b) => (a.num || 0) - (b.num || 0)); }
@@ -1549,7 +1580,7 @@ function renderInfo() {
     el('div', { className: 'meta', textContent: `${cat.name}${ONLINE ? ' · ' + VIS[m.vis || 'faction'] : ''}${f.flag && FLAG[f.flag] ? ' · ' + FLAG[f.flag].name : ''}` })));
   box.append(head);
   const facts = [['Position', fmt(ctr)]];
-  if (isZone(f)) facts.push(['Area', fmtArea(areaOf(f))], ['Edge length', fmtDist(perimOf(f))]);
+  if (isZone(f)) facts.push(['Area', fmtArea(areaOf(f))], ['Distance around', fmtDist(perimOf(f))]);
   if (f.kind === 'circle') facts.push(['Radius', f.radius + ' m']);
   if (f.kind === 'route') facts.push(['Length', fmtDist(routeLen(f.points))]);
   const fac = m.fac && factions.get(m.fac);
@@ -1560,7 +1591,7 @@ function renderInfo() {
   }
   for (const fd of FIELDS[f.cat] || []) { const t = fieldText(fd, (f.d || {})[fd.k]); if (t) facts.push([fd.l, t]); }
   if (ONLINE) facts.push(['Added by', uname(m.owner)]);
-  facts.push(['Updated', `${ago(f.updated || 0)}${f.author ? ' by ' + f.author : ''}`]);
+  facts.push(['Updated', `${ago(f.updated || 0)}${byWho(f)}`]);
   const dl = el('dl', { className: 'facts' });
   for (const [k, v] of facts) dl.append(el('dt', { textContent: k }), el('dd', {}, v));
   box.append(dl);
@@ -1649,6 +1680,21 @@ async function delNote(id) {
   if (error) return toast('Could not delete: ' + error.message);
   notes.delete(id); renderInfo(); refreshSide();
 }
+// on phones the form / info sheet covers the lower half of the map: nudge the item up into the part still showing
+function revealAboveSheet(f) {
+  setTimeout(() => {
+    if (!f || !document.body.classList.contains('sheet')) return;
+    const pts = f.points?.length ? f.points : f.pos ? [f.pos] : [];
+    if (!pts.length) return;
+    const ys = pts.map(p => map.latLngToContainerPoint(ll(p)).y);
+    const pad = f.kind === 'circle' ? map.latLngToContainerPoint(ll([f.pos[0], f.pos[1] - (f.radius || 0)])).y - ys[0] : 0;
+    const top = Math.min(...ys) - Math.abs(pad), bottom = Math.max(...ys) + Math.abs(pad);
+    const visible = $('side').getBoundingClientRect().top - $('map').getBoundingClientRect().top;
+    if (bottom <= visible - 24) return;
+    const dy = Math.min(bottom - (visible - 24), Math.max(0, top - 90)); // never push its top under the search bar
+    if (dy > 4) map.panBy([0, dy]);
+  }, 260);
+}
 function zoomTo(f) {
   document.body.classList.remove('open');
   const layer = layers.get(f.id);
@@ -1710,7 +1756,7 @@ function refreshAct() {
     $('tAct').title = ats ? `${ats} new mention${ats > 1 ? 's' : ''} of you` : 'What changed recently';
     if (!$('act').classList.contains('show')) return;
     const box = $('actList'); box.replaceChildren();
-    if (!items.length) box.append(el('div', { className: 'dim', style: 'padding:10px', textContent: 'Nothing yet. Edits and notes show up here.' }));
+    if (!items.length) box.append(el('div', { className: 'dim', style: 'padding:10px', textContent: ONLINE ? 'Nothing yet. Edits and notes show up here.' : 'Log in and join a server to see what everyone else adds and changes.' }));
     for (const a of items) {
       const line2 = a.kind !== 'edit'
         ? el('div', { className: 'q', textContent: `“${a.n.body.slice(0, 80)}”` })
@@ -1743,8 +1789,9 @@ function refreshSide() {
     fl.append(el('label', {}, cb, `${c.icon} ${c.name}`, el('span', { className: 'n', textContent: counts[c.id] || '' })));
   }
   const vf = $('visFilters'); vf.replaceChildren();
+  $('showSec').style.display = ONLINE ? '' : 'none'; // who-can-see filters mean nothing in a guest map
   for (const [k, t] of [['mine', '🔒 My private'], ['faction', '👥 My faction'], ['others', '🌐 Other factions']]) {
-    if (!ONLINE && k !== 'faction') continue;
+    if (!ONLINE) continue;
     const cb = el('input', { type: 'checkbox', checked: !!visFilter[k] });
     cb.onchange = () => { visFilter[k] = cb.checked; ls.set('fm:visf', visFilter); renderAll(); };
     vf.append(el('label', {}, cb, t));
@@ -1776,6 +1823,8 @@ function refreshSide() {
 function refreshList() {
   const list = $('list'); list.replaceChildren();
   const items = [...feats.values()].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  $('listN').textContent = items.length ? '· ' + items.length : '';
+  if (items.length > 300) setTimeout(() => list.append(el('div', { className: 'empty', textContent: `Showing the 300 most recent of ${items.length}. Search to find the rest.` })));
   if (!items.length) { list.append(el('div', { className: 'empty', textContent: 'Nothing marked yet. Pick a type above, then click the map.' })); return; }
   for (const f of items.slice(0, 300)) {
     list.append(el('div', { className: 'item', onclick: () => focusFeature(f.id) },
@@ -2299,8 +2348,8 @@ function openCtx(e, featId) {
     const chips = el('div', { className: 'cc' });
     for (const [id, name] of AREA_TYPES)
       chips.append(el('button', { type: 'button', style: `--c:${CAT[id].color}`, onclick: () => addAt(id, p, areaShape) }, `${CAT[id].icon} ${name}`));
-    box.append(hr(), el('div', { className: 'cl' }, 'Start an area here', el('span', { className: 'cs' }, shapeBtn('polygon', 'Outline'), shapeBtn('box', 'Box'), shapeBtn('circle', 'Circle'))), chips);
-    box.append(hr(), el('div', { className: 'cl', textContent: 'Add a pin here' }));
+    box.append(hr(), el('div', { className: 'cl' }, 'New area', el('span', { className: 'cs' }, shapeBtn('polygon', 'Outline'), shapeBtn('box', 'Box'), shapeBtn('circle', 'Circle'))), chips);
+    box.append(hr(), el('div', { className: 'cl', textContent: 'New pin' }));
     const grid = el('div', { className: 'cg' });
     for (const c of CATS) if (c.id !== 'route' && c.id !== 'compound' && c.id !== 'territory')
       grid.append(el('button', { type: 'button', title: c.name, textContent: c.icon, onclick: () => addAt(c.id, p, 'marker') }));
@@ -2932,15 +2981,16 @@ function openForm() {
   $('fTip').textContent = f.kind === 'polygon' ? 'Drag corners to adjust · drag or click the small dots to add a corner · right-click a corner (or select it and press Delete) to remove it · Backspace undoes' : f.kind === 'circle' ? 'Drag the middle to move it and the edge handle to resize · Backspace undoes' : f.kind === 'marker' ? 'Drag the handle to move it · Backspace undoes' : '';
   $('fTip').style.display = $('fTip').textContent ? '' : 'none';
   $('fMove').textContent = f.kind === 'polygon' ? 'Redraw' : 'Reposition';
-  if (f.kind === 'polygon') drawDims(f.points, true);
   const isRoute = f.kind === 'route';
   $('fMove').style.display = isRoute ? 'none' : '';
   $('fCatWrap').style.display = isRoute ? 'none' : '';
   $('routeBox').style.display = isRoute ? '' : 'none';
   $('form').classList.add('show');
+  if (f.kind === 'polygon') drawDims(f.points, true); // after 'show', so the size line lands in the form
   $('scroll').scrollTop = 0;
   if (isRoute) { updateRouteInfo(); return; }
   document.body.classList.add('open');
+  revealAboveSheet(f);
   setTimeout(() => $('fName').focus(), 50);
 }
 function closeForm(silent) {
@@ -3091,7 +3141,7 @@ $('loginBtn').onclick = () => showAuth('login');
 async function startGuest() {
   me = null; ONLINE = false; server = null;
   $('srvSel').style.display = 'none';
-  $('who').textContent = HAS_SB ? 'Guest · your markers are saved in this browser only' : 'Local mode · saved in this browser';
+  $('who').textContent = HAS_SB ? 'Markers saved in this browser only' : 'Local mode · saved in this browser';
   $('loginBtn').style.display = sb ? '' : 'none';
   feats.clear(); await localStore.init(); renderAll();
   setStatus(HAS_SB ? 'Guest' : 'Local only');
@@ -3756,6 +3806,18 @@ document.addEventListener('keydown', e => {
   e.shiftKey ? saveBm(n) : goBm(n);
 });
 renderBms();
+// menu sections fold up when you click their heading; remembered per section. Map info and Settings start folded.
+{
+  const closed = Object.assign({ info: true, settings: true }, ls.get('fm:secs', {}));
+  for (const s of document.querySelectorAll('#paneMap .sec')) {
+    s.classList.toggle('closed', !!closed[s.dataset.sec]);
+    s.querySelector('h2').addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      closed[s.dataset.sec] = s.classList.toggle('closed');
+      ls.set('fm:secs', closed);
+    });
+  }
+}
 $('paneMap').addEventListener('change', e => { if (e.target.closest('#filters, #refs')) setTimeout(renderPresets); });
 renderPresets(); renderTemplates();
 
