@@ -147,6 +147,13 @@
   #miniToggle { position: absolute; top: 2px; right: 2px; z-index: 500; padding: 0 6px; font-size: 12px; line-height: 18px; border-radius: 5px; background: rgba(0,0,0,.65); border: 0; color: #fff; cursor: pointer; }
   #miniWrap.off #miniToggle { top: 2px; right: 2px; }
   @media (max-width: 560px) { #miniWrap { display: none; } }
+  #actBadge.at { background: #3b8cff; }
+  .note.tome { box-shadow: inset 3px 0 0 #3b8cff; }
+  .mention { color: #7fb4ff; font-weight: 600; }
+  .mention.me { background: #3b8cff; color: #fff; border-radius: 4px; padding: 0 3px; }
+  .msug { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+  .msug:empty { display: none; }
+  .msug button { font-size: 12px; padding: 2px 8px; border-radius: 99px; }
   #actBadge:not(:empty) { display: inline-block; margin-left: 5px; min-width: 16px; padding: 0 4px; border-radius: 99px; background: #ff5b52; color: #fff; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center; }
   #act { position: absolute; right: 110px; top: 130px; z-index: 1001; width: 290px; max-height: min(70vh, 520px); display: none; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px #000c; font-size: 12.5px; }
   #act.show { display: flex; }
@@ -1488,9 +1495,24 @@ function renderInfo() {
   for (const n of list) {
     const nh = el('div', { className: 'nh' }, el('b', { textContent: uname(n.author) }), el('span', { textContent: NVIS[n.vis] }), el('span', { textContent: ago(n.created_at) }));
     if (n.author === me?.id || (n.vis === 'server' && isAdmin())) nh.append(el('button', { className: 'linkbtn', style: 'margin-left:auto', textContent: 'delete', onclick: () => delNote(n.id) }));
-    box.append(el('div', { className: 'note ' + n.vis }, nh, el('div', { className: 'nb', textContent: n.body })));
+    box.append(el('div', { className: 'note ' + n.vis + (mentionsMe(n) ? ' tome' : '') }, nh, noteBody(n.body)));
   }
-  const ta = el('textarea', { rows: 3, maxLength: 2000, placeholder: 'Write a note…' });
+  const ta = el('textarea', { rows: 3, maxLength: 2000, placeholder: 'Write a note… type @ to mention a player' });
+  const sug = el('div', { className: 'msug' });
+  // @ autocomplete from the players on this server
+  const atWord = () => { const m = ta.value.slice(0, ta.selectionStart).match(/(^|\s)@([\w.-]*)$/); return m ? m[2] : null; };
+  const pick = name => {
+    const pos = ta.selectionStart, before = ta.value.slice(0, pos).replace(/@([\w.-]*)$/, '@' + name + ' ');
+    ta.value = before + ta.value.slice(pos); ta.focus(); ta.selectionStart = ta.selectionEnd = before.length; sug.replaceChildren();
+  };
+  ta.addEventListener('input', () => {
+    sug.replaceChildren();
+    const w = atWord(); if (w === null) return;
+    const names = smembers.map(x => uname(x.user_id)).filter(nm => nm && nm !== me?.username && nm.toLowerCase().startsWith(w.toLowerCase())).sort().slice(0, 6);
+    for (const nm of names) sug.append(el('button', { type: 'button', textContent: '@' + nm, onmousedown: ev => { ev.preventDefault(); pick(nm); } }));
+  });
+  ta.addEventListener('keydown', ev => { if ((ev.key === 'Tab' || ev.key === 'Enter') && sug.firstChild) { ev.preventDefault(); sug.firstChild.onmousedown(ev); } });
+  ta.addEventListener('blur', () => setTimeout(() => sug.replaceChildren(), 150));
   let nvis = ls.get('fm:nvis', myFac ? 'crew' : 'private');
   if (nvis === 'crew' && !myFac) nvis = 'private';
   const seg = el('div', { className: 'seg', style: 'margin-top:6px' });
@@ -1508,7 +1530,22 @@ function renderInfo() {
     if (error) return toast('Note not saved: ' + error.message);
     notes.set(data.id, data); ta.value = ''; renderInfo();
   } });
-  box.append(el('label', { textContent: `Add a note as ${me?.username || ''}` }), ta, seg, post);
+  box.append(el('label', { textContent: `Add a note as ${me?.username || ''}` }), ta, sug, seg, post);
+}
+// ---------- @mentions ----------
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function mentionsMe(n) {
+  if (!me?.username || n.author === me.id) return false;
+  return new RegExp(`(^|[^\\w.-])@${escRe(me.username)}(?![\\w-])`, 'i').test(n.body || '');
+}
+function noteBody(text) {
+  const d = el('div', { className: 'nb' });
+  for (const part of String(text).split(/(@[\w.-]+)/)) {
+    if (!/^@[\w.-]+$/.test(part)) { d.append(part); continue; }
+    const isMe = me?.username && part.slice(1).replace(/[.]+$/, '').toLowerCase() === me.username.toLowerCase();
+    d.append(el('span', { className: 'mention' + (isMe ? ' me' : ''), textContent: part }));
+  }
+  return d;
 }
 async function delNote(id) {
   if (!confirm('Delete this note?')) return;
@@ -1562,7 +1599,7 @@ function activity() {
   }
   for (const n of notes.values()) {
     const f = feats.get(n.feature_id); if (!f) continue;
-    out.push({ ts: Date.parse(n.created_at) || 0, f, n, mine: n.author === me?.id, who: uname(n.author), kind: 'note' });
+    out.push({ ts: Date.parse(n.created_at) || 0, f, n, mine: n.author === me?.id, who: uname(n.author), kind: mentionsMe(n) ? 'mention' : 'note' });
   }
   return out.sort((a, b) => b.ts - a.ts).slice(0, 40);
 }
@@ -1571,18 +1608,21 @@ function refreshAct() {
   clearTimeout(actT);
   actT = setTimeout(() => {
     const items = activity(), fresh = items.filter(a => !a.mine && a.ts > actSeen).length;
-    $('actBadge').textContent = fresh ? (fresh > 9 ? '9+' : fresh) : '';
+    const ats = items.filter(a => a.kind === 'mention' && a.ts > actSeen).length;
+    $('actBadge').textContent = ats ? '@' + (ats > 9 ? '9+' : ats) : fresh ? (fresh > 9 ? '9+' : fresh) : '';
+    $('actBadge').classList.toggle('at', !!ats);
+    $('tAct').title = ats ? `${ats} new mention${ats > 1 ? 's' : ''} of you` : 'What changed recently';
     if (!$('act').classList.contains('show')) return;
     const box = $('actList'); box.replaceChildren();
     if (!items.length) box.append(el('div', { className: 'dim', style: 'padding:10px', textContent: 'Nothing yet. Edits and notes show up here.' }));
     for (const a of items) {
-      const line2 = a.kind === 'note'
+      const line2 = a.kind !== 'edit'
         ? el('div', { className: 'q', textContent: `“${a.n.body.slice(0, 80)}”` })
         : el('div', { className: 'dim', textContent: catOf(a.f).name });
       box.append(el('div', { className: 'ai' + (!a.mine && a.ts > actSeen ? ' new' : ''), title: new Date(a.ts).toLocaleString(), onclick: () => { zoomTo(a.f); openInfo(a.f.id); } },
-        el('span', { className: 'ic', textContent: a.kind === 'note' ? '💬' : catOf(a.f).icon }),
+        el('span', { className: 'ic', textContent: a.kind === 'mention' ? '📣' : a.kind === 'note' ? '💬' : catOf(a.f).icon }),
         el('div', { className: 'tx' },
-          el('div', {}, el('b', { textContent: a.who }), a.kind === 'note' ? ' noted on ' : ' updated ', el('b', { textContent: featTitle(a.f) })),
+          el('div', {}, el('b', { textContent: a.who }), a.kind === 'mention' ? ' mentioned you on ' : a.kind === 'note' ? ' noted on ' : ' updated ', el('b', { textContent: featTitle(a.f) })),
           line2),
         el('span', { className: 'dim', style: 'white-space:nowrap', textContent: ago(a.ts) })));
     }
@@ -3164,8 +3204,11 @@ function subscribe() {
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'features', filter: f }, onFeatRow)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: f }, async msg => {
       if (msg.eventType === 'DELETE' || !msg.new) return;
+      const isNew = !notes.has(msg.new.id);
       notes.set(msg.new.id, msg.new); await loadProfiles([msg.new.author]);
       if (infoId) renderInfo();
+      refreshAct();
+      if (isNew && mentionsMe(msg.new)) { const f = feats.get(msg.new.feature_id); toast(`📣 ${uname(msg.new.author)} mentioned you${f ? ' on ' + featTitle(f) : ''}`); }
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'factions' }, metaChanged)
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'faction_members' }, metaChanged)
