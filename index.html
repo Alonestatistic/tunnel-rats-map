@@ -163,6 +163,15 @@
   #ctx .cs { margin-left: auto; display: flex; gap: 2px; }
   #ctx .cs button { font-size: 10.5px; text-transform: none; letter-spacing: 0; padding: 1px 7px; border-radius: 99px; background: none; color: var(--dim); }
   #ctx .cs button.on { background: var(--accent); border-color: var(--accent); color: #1a1408; }
+  #mselbar { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); z-index: 1001; display: none; align-items: center; gap: 6px;
+    background: rgba(20,20,24,.94); border: 1px solid #5fd3ff; border-radius: 10px; padding: 6px 8px; box-shadow: 0 6px 20px rgba(0,0,0,.5); white-space: nowrap; max-width: calc(100% - 24px); overflow-x: auto; }
+  #mselbar.show { display: flex; }
+  #mselbar b { font-size: 13px; color: #5fd3ff; margin: 0 4px; }
+  #mselbar button, #mselbar select, #mselbar .selc { font: inherit; font-size: 12.5px; padding: 5px 9px; border-radius: 7px; border: 1px solid #444; background: #26262c; color: inherit; cursor: pointer; }
+  #mselbar button:hover, #mselbar .selc:hover { border-color: #5fd3ff; }
+  #mselbar .danger { color: #ff7b7b; }
+  #mselbar .selc { position: relative; display: inline-flex; align-items: center; }
+  #mselbar .selc input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
   #presets { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
   #presets .pz { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line, #444); background: transparent; color: inherit; cursor: pointer; }
   #presets .pz:hover { border-color: #e2a93b; }
@@ -406,6 +415,14 @@
   <div id="coords">– / –</div>
   <div id="ctx" role="menu"></div>
   <div id="hov" aria-hidden="true"></div>
+  <div id="mselbar">
+    <b id="mselN"></b>
+    <button type="button" id="mselMove" title="Then drag anywhere on the map">✥ Move</button>
+    <label class="selc" title="Recolour them all">🎨 Colour<input type="color" id="mselColor" value="#e2a93b"></label>
+    <select id="mselVis" title="Who can see them"><option value="">👁 Visibility…</option><option value="private">Only me</option><option value="faction">My faction</option><option value="server">Whole server</option></select>
+    <button type="button" id="mselDel" class="danger">🗑 Delete</button>
+    <button type="button" id="mselClear" title="Clear selection (Esc)">✕</button>
+  </div>
 </div>
 
 <div id="auth" class="modal">
@@ -896,6 +913,7 @@ function buildRefUI() {
 const feats = new Map();      // id -> feature (data + $: { vis, fac, owner, saved })
 const layers = new Map();     // id -> leaflet layer
 let hidden = new Set(ls.get('fm:hidden', []));
+const sel = new Set();        // multi-selected feature ids
 let visFilter = Object.assign({ mine: true, faction: true, others: true }, ls.get('fm:visf', {}));
 let labelsOn = ls.get('fm:labels', true);
 let tool = null;              // null | 'place' | 'poly' | 'measure' | 'route' | 'nav'
@@ -1002,7 +1020,13 @@ function buildLayer(f, isDraft) {
     layer.on('mouseout', hoverHide);
   }
   if (!isDraft) layer.on('contextmenu', e => { L.DomEvent.stopPropagation(e); L.DomEvent.preventDefault(e.originalEvent); if (!tool) openCtx(e, f.id); });
-  if (!isDraft) layer.on('click', e => { L.DomEvent.stop(e); if (tool) { map.fire('click', { latlng: e.latlng, originalEvent: e.originalEvent }); return; } openInfo(f.id); });
+  if (!isDraft) layer.on('click', e => {
+    L.DomEvent.stop(e);
+    if (tool) { map.fire('click', { latlng: e.latlng, originalEvent: e.originalEvent }); return; }
+    const oe = e.originalEvent || {};
+    if (oe.shiftKey || oe.ctrlKey || oe.metaKey) { toggleSel(f.id); return; }
+    openInfo(f.id);
+  });
   return layer;
 }
 // ---------- hover preview card ----------
@@ -1201,21 +1225,32 @@ function undoDraft() {
 // ---------- undo of saved changes (Backspace / Ctrl+Z) ----------
 const undoStack = [];
 const clone = o => o ? JSON.parse(JSON.stringify(o)) : null;
-function record(before, after) { undoStack.push({ before: clone(before), after: clone(after) }); if (undoStack.length > 100) undoStack.shift(); }
-function undoSaved() {
-  const h = undoStack.pop();
-  if (!h) { toast('Nothing to undo'); return; }
+let histGroup = null;   // while set, record() collects into one undo step (bulk edits)
+function pushHist(h) { undoStack.push(h); if (undoStack.length > 100) undoStack.shift(); }
+function record(before, after) {
+  const h = { before: clone(before), after: clone(after) };
+  if (histGroup) histGroup.push(h); else pushHist(h);
+}
+function histBatch(label, fn) {
+  histGroup = [];
+  try { fn(); } finally { const g = histGroup; histGroup = null; if (g.length) pushHist({ group: g, label }); }
+}
+function revertHist(h) {
   if (!h.before) {   // it was created: remove it
-    const id = h.after.id;
-    removeLocal(id); store.remove(id);
-    toast(`Undid: added ${featTitle(h.after)}`);
+    removeLocal(h.after.id); store.remove(h.after.id);
   } else {           // it was changed or deleted: put the old version back
     const f = clone(h.before);
     f.updated = Date.now();
     f.$ = { ...(f.$ || {}), saved: feats.has(f.id) && !!f.$?.saved };
     upsert(f, true);
-    toast(h.after ? `Undid changes to ${featTitle(f)}` : `Restored ${featTitle(f)}`);
   }
+}
+function undoSaved() {
+  const h = undoStack.pop();
+  if (!h) { toast('Nothing to undo'); return; }
+  if (h.group) { for (const x of [...h.group].reverse()) revertHist(x); toast(`Undid: ${h.label}`); drawSel(); return; }
+  revertHist(h);
+  toast(!h.before ? `Undid: added ${featTitle(h.after)}` : h.after ? `Undid changes to ${featTitle(h.before)}` : `Restored ${featTitle(h.before)}`);
 }
 
 // ---------- info panel (click anything you drew) ----------
@@ -1560,6 +1595,117 @@ $('map').addEventListener('mousedown', ev => {
   };
   document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
 }, true);
+// ---------- multi-select: Shift/Ctrl-click items or Shift-drag a box, then move / recolour / change visibility / delete together ----------
+let selLayer = null, selOff = [0, 0], selHinted = false;
+function shifted(f, dx, dz) {
+  const c = clone(f);
+  if (c.points) c.points = c.points.map(([x, z]) => [clampW(x + dx), clampW(z + dz)]);
+  if (c.pos) c.pos = [clampW(c.pos[0] + dx), clampW(c.pos[1] + dz)];
+  return c;
+}
+function drawSel() {
+  selLayer?.remove(); selLayer = null;
+  for (const id of [...sel]) if (!feats.has(id)) sel.delete(id);
+  $('mselbar').classList.toggle('show', sel.size > 0);
+  if (!sel.size) return;
+  const g = selLayer = L.featureGroup().addTo(map), o = { color: '#5fd3ff', weight: 2, dashArray: '5 4', fill: false, interactive: false };
+  for (const id of sel) {
+    const f = shifted(feats.get(id), selOff[0], selOff[1]);
+    if (f.kind === 'polygon') L.polygon(f.points.map(ll), o).addTo(g);
+    else if (f.kind === 'route') L.polyline(f.points.map(ll), o).addTo(g);
+    else if (f.kind === 'circle') L.circle(ll(f.pos), { ...o, radius: f.radius }).addTo(g);
+    else L.circleMarker(ll(f.pos), { ...o, radius: 17 }).addTo(g);
+  }
+  const ed = [...sel].filter(id => canEdit(feats.get(id))).length;
+  $('mselN').textContent = `${sel.size} selected` + (ed < sel.size ? ` (${sel.size - ed} not yours)` : '');
+  $('mselVis').style.display = ONLINE ? '' : 'none';
+}
+function toggleSel(id) {
+  sel.has(id) ? sel.delete(id) : sel.add(id);
+  closeInfo(); drawSel();
+  if (!selHinted && sel.size) { selHinted = true; toast('Shift-click to add more · Shift-drag a box · Esc clears'); }
+}
+function clearSel() { sel.clear(); selOff = [0, 0]; if (tool === 'selmove') cancelTool(); drawSel(); }
+const selEditable = () => [...sel].map(id => feats.get(id)).filter(f => f && canEdit(f));
+function bulkChange(label, fn) {
+  const fs = selEditable();
+  if (!fs.length) return toast("None of these are yours to change");
+  histBatch(label, () => { for (const f of fs) { const c = clone(f); fn(c); c.updated = Date.now(); upsert(c); } });
+  drawSel();
+  toast(`${label} · Backspace to undo`);
+}
+function bulkDelete() {
+  const fs = selEditable();
+  if (!fs.length) return toast("None of these are yours to delete");
+  const nn = [...notes.values()].filter(n => fs.some(f => f.id === n.feature_id)).length;
+  if (!confirm(`Delete ${fs.length} item${fs.length > 1 ? 's' : ''}?` + (nn ? ` Their ${nn} note${nn > 1 ? 's are' : ' is'} deleted too and can't be brought back.` : ' Backspace brings them back.'))) return;
+  histBatch(`deleted ${fs.length} items`, () => { for (const f of fs) { record(f, null); removeLocal(f.id); store.remove(f.id); } });
+  sel.clear(); drawSel();
+  toast(`Deleted ${fs.length} · Backspace to undo`);
+}
+$('map').addEventListener('mousedown', ev => {
+  if (ev.button !== 0) return;
+  // drag to move the selection
+  if (tool === 'selmove') {
+    if (ev.target.closest('.leaflet-control, #ctx, #hint, #mselbar')) return;
+    ev.stopPropagation(); ev.preventDefault();
+    const a = map.mouseEventToLatLng(ev);
+    const move = e2 => { const b = map.mouseEventToLatLng(e2); selOff = [Math.round(b.lng - a.lng), Math.round(b.lat - a.lat)]; drawSel(); };
+    const up = () => {
+      document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+      const [dx, dz] = selOff; selOff = [0, 0];
+      cancelTool();
+      if (!dx && !dz) { drawSel(); return; }
+      // bases bring their compounds along
+      const ids = new Set(selEditable().map(f => f.id));
+      for (const id of [...ids]) for (const c of compoundsOf(id)) if (canEdit(c)) ids.add(c.id);
+      histBatch(`moved ${ids.size} items`, () => { for (const id of ids) { const c = shifted(feats.get(id), dx, dz); c.updated = Date.now(); upsert(c); } });
+      drawSel(); toast(`Moved ${ids.size} item${ids.size > 1 ? 's' : ''} ${fmtDist(Math.hypot(dx, dz))} · Backspace to undo`);
+    };
+    document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+    return;
+  }
+  // Shift-drag on empty map: box select
+  if (tool || !ev.shiftKey || $('form').classList.contains('show')) return;
+  if (ev.target.closest('.leaflet-marker-icon, .leaflet-control, #ctx, #hint, #mselbar, path.leaflet-interactive')) return;
+  ev.stopPropagation(); ev.preventDefault();
+  map.dragging.disable();
+  const a = map.mouseEventToLatLng(ev); let rect = null;
+  const move = e2 => {
+    const b = map.mouseEventToLatLng(e2), bounds = L.latLngBounds(a, b);
+    if (!rect) rect = L.rectangle(bounds, { color: '#5fd3ff', weight: 1.5, dashArray: '4 4', fillOpacity: .08, interactive: false }).addTo(map);
+    else rect.setBounds(bounds);
+  };
+  const up = e2 => {
+    document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+    map.dragging.enable();
+    if (!rect) return;
+    const bounds = rect.getBounds(); rect.remove();
+    let n = 0;
+    for (const f of feats.values()) {
+      if (!shown(f)) continue;
+      const pts = f.points || [f.pos];
+      if (pts.some(p => bounds.contains(ll(p)))) { if (!sel.has(f.id)) n++; sel.add(f.id); }
+    }
+    closeInfo(); drawSel();
+    if (!n) toast('Nothing in that box');
+  };
+  document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+}, true);
+$('mselMove').onclick = () => {
+  if (!selEditable().length) return toast("None of these are yours to move");
+  closeForm(true); cancelTool();
+  tool = 'selmove'; map.dragging.disable();
+  setHint(`Drag anywhere to move ${sel.size} item${sel.size > 1 ? 's' : ''} · Esc to stop`);
+};
+$('mselColor').onchange = e => { const c = e.target.value; bulkChange('recoloured', f => { f.color = c; }); };
+$('mselVis').onchange = e => {
+  const v = e.target.value; e.target.value = ''; if (!v) return;
+  bulkChange(`set to ${({ private: 'only me', faction: 'my faction', server: 'whole server' })[v]}`, f => { f.$ = { ...(f.$ || {}), vis: v, fac: v === 'private' ? f.$?.fac : (f.$?.fac || myFac) }; });
+};
+$('mselDel').onclick = bulkDelete;
+$('mselClear').onclick = clearSel;
+L.DomEvent.disableClickPropagation($('mselbar'));
 function finishPoly() {
   if (polyPts.length < 3) { toast('Need at least 3 points'); return; }
   draft.points = polyPts.slice(); polyPts = []; tool = null;
@@ -1732,7 +1878,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('auth').classList.contains('show')) { $('auth').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('srvpick').classList.contains('show')) { $('srvpick').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('ctx').style.display === 'block') { closeCtx(); return; }
-  if (e.key === 'Escape') { if (tool) cancelTool(); else if ($('form').classList.contains('show')) closeForm(); else if (infoId) closeInfo(); }
+  if (e.key === 'Escape') { if (tool) cancelTool(); else if ($('form').classList.contains('show')) closeForm(); else if (infoId) closeInfo(); else if (sel.size) clearSel(); }
   if (e.key === 'Enter' && tool === 'poly') finishPoly();
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable
     || $('auth').classList.contains('show') || $('srvpick').classList.contains('show');
@@ -1753,6 +1899,7 @@ document.addEventListener('keydown', e => {
     if (formOpen && draft?.kind === 'polygon' && vSel >= 0) { removeVertex(vSel); return; }
     if (tool === 'poly') { cancelTool(); toast('Area discarded'); return; }
     if (formOpen && draft) { $('fDelete').click(); return; }
+    if (sel.size && !infoId) { bulkDelete(); return; }
     if (infoId) del(infoId, true);
   }
 });
@@ -2340,8 +2487,8 @@ $('fSave').onclick = () => {
 };
 
 // ---------- data ----------
-function applyLocal(f) { feats.set(f.id, f); renderFeature(f.id); refreshSide(); if (infoId === f.id) renderInfo(); }
-function removeLocal(id) { if (!feats.delete(id)) return; renderFeature(id); refreshSide(); if (infoId === id) closeInfo(); }
+function applyLocal(f) { feats.set(f.id, f); renderFeature(f.id); refreshSide(); if (infoId === f.id) renderInfo(); if (sel.has(f.id) && !histGroup) drawSel(); }
+function removeLocal(id) { if (!feats.delete(id)) return; renderFeature(id); refreshSide(); if (infoId === id) closeInfo(); if (sel.has(id) && !histGroup) drawSel(); }
 function upsert(f, noHist) {
   if (!noHist) record(feats.get(f.id), f);
   const m = f.$ = { ...(f.$ || {}) };
