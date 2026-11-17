@@ -283,9 +283,30 @@
     body.open #menu { left: calc(min(340px, 90vw) + 10px); }
     #topsearch { left: 104px; right: 10px; width: auto; transform: none; }
     body.open #topsearch { display: none; }
-    .leaflet-top.leaflet-right { top: 48px; }
-    .leaflet-top.leaflet-left { top: 44px; }
-    #tools { top: 108px; }
+    .leaflet-top.leaflet-right { top: 78px; }
+    .leaflet-top.leaflet-left { top: 78px; }
+    #tools { top: 168px; }
+    #qf { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; padding-bottom: 2px; }
+    #qf::-webkit-scrollbar { display: none; }
+    #qf button { flex: none; }
+    #announce { width: auto; left: 10px; right: 10px; transform: none; top: 84px; }
+    #act { right: 10px; left: 10px; width: auto; top: 140px; }
+    #mselbar { bottom: 12px; }
+    /* item info and the edit form become a bottom sheet so the map stays visible above them */
+    body.sheet #side { inset: auto 0 0 0; width: 100%; height: var(--sheetH, 52vh); transform: none; transition: height .2s; border-right: 0; border-top: 1px solid var(--line);
+      border-radius: 14px 14px 0 0; box-shadow: 0 -8px 30px #000a; }
+    body.sheet #side header, body.sheet #side footer { display: none; }
+    body.sheet #menu { left: 10px; }
+    body.sheet #sheetGrip { display: block; }
+    body.sheet #mselbar, body.sheet #miniWrap { display: none; }
+  }
+  #sheetGrip { display: none; flex: none; height: 22px; cursor: ns-resize; touch-action: none; position: relative; }
+  #sheetGrip::before { content: ''; position: absolute; left: 50%; top: 8px; width: 44px; height: 5px; margin-left: -22px; border-radius: 3px; background: var(--line); }
+  /* fingers: bigger corner handles (scaled so they stay centred on the corner) */
+  @media (pointer: coarse) {
+    .vh { transform: scale(1.7); }
+    .vh.mid { transform: scale(1.9); }
+    #tools button { padding: 8px 10px; }
   }
 </style>
 <script src="config.js"></script>
@@ -325,6 +346,7 @@
     </nav>
   </header>
 
+  <div id="sheetGrip" title="Drag to resize · tap to expand or shrink"></div>
   <div id="scroll">
     <div id="form">
       <h2 id="formTitle">New marker</h2>
@@ -722,7 +744,7 @@ const flagSvg = id => (FLAG[id] || {}).svg || '';
 
 // ---------- map ----------
 const crs = L.extend({}, L.CRS.Simple, { transformation: new L.Transformation(256 / TW, 0, -256 / TW, 256) });
-const map = L.map('map', { crs, minZoom: 0, maxZoom: 9, zoomSnap: 0, zoomDelta: 0.5, wheelPxPerZoomLevel: 160, wheelDebounceTime: 15, doubleClickZoom: false, boxZoom: false, attributionControl: true });
+const map = L.map('map', { crs, minZoom: 0, maxZoom: 9, zoomSnap: 0, zoomDelta: 0.5, wheelPxPerZoomLevel: 160, wheelDebounceTime: 15, doubleClickZoom: false, boxZoom: false, attributionControl: true, tapHold: true });
 map.attributionControl.setPrefix(false);
 const worldBounds = L.latLngBounds([0, 0], [W, W]);
 map.setMaxBounds(worldBounds.pad(0.4));
@@ -2339,6 +2361,35 @@ $('tMeasure').onclick = () => {
 $('tGrid').onclick = () => { const on = !map.hasLayer(grid); on ? grid.addTo(map) : grid.remove(); $('tGrid').classList.toggle('on', on); ls.set('fm:grid', on); };
 $('tLabels').onclick = () => { labelsOn = !labelsOn; ls.set('fm:labels', labelsOn); $('tLabels').classList.toggle('on', labelsOn); renderAll(); };
 $('menu').onclick = () => document.body.classList.toggle('open');
+// ---------- phones: info / form as a bottom sheet ----------
+const phone = matchMedia('(max-width: 760px)');
+function syncSheet() {
+  const on = phone.matches && ($('form').classList.contains('show') || $('info').classList.contains('show'));
+  document.body.classList.toggle('sheet', on);
+  if (on) document.body.classList.remove('open');
+}
+new MutationObserver(syncSheet).observe($('form'), { attributes: true, attributeFilter: ['class'] });
+new MutationObserver(syncSheet).observe($('info'), { attributes: true, attributeFilter: ['class'] });
+phone.addEventListener?.('change', syncSheet);
+// drag the grip to resize (snaps to small / half / tall); tap toggles half <-> tall
+(() => {
+  const g = $('sheetGrip'), sizes = [28, 52, 88];
+  let y0 = null, h0 = 0, moved = false;
+  const cur = () => parseFloat(getComputedStyle(document.body).getPropertyValue('--sheetH')) || 52;
+  g.addEventListener('pointerdown', e => { y0 = e.clientY; h0 = $('side').getBoundingClientRect().height; moved = false; g.setPointerCapture(e.pointerId); $('side').style.transition = 'none'; });
+  g.addEventListener('pointermove', e => {
+    if (y0 === null) return;
+    if (Math.abs(e.clientY - y0) > 5) moved = true;
+    const vh = Math.max(15, Math.min(92, (h0 + y0 - e.clientY) / innerHeight * 100));
+    document.body.style.setProperty('--sheetH', vh + 'vh');
+  });
+  g.addEventListener('pointerup', () => {
+    if (y0 === null) return; y0 = null; $('side').style.transition = '';
+    const v = cur();
+    const snap = moved ? sizes.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a) : (v >= 70 ? 52 : 88);
+    document.body.style.setProperty('--sheetH', snap + 'vh');
+  });
+})();
 $('tKeys').onclick = () => $('keys').classList.add('show');
 $('keysClose').onclick = () => $('keys').classList.remove('show');
 $('keys').onclick = e => { if (e.target === $('keys')) $('keys').classList.remove('show'); };
