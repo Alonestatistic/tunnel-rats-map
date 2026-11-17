@@ -163,6 +163,11 @@
   #ctx .cs { margin-left: auto; display: flex; gap: 2px; }
   #ctx .cs button { font-size: 10.5px; text-transform: none; letter-spacing: 0; padding: 1px 7px; border-radius: 99px; background: none; color: var(--dim); }
   #ctx .cs button.on { background: var(--accent); border-color: var(--accent); color: #1a1408; }
+  .leaflet-tooltip.dimlbl { background: rgba(0,0,0,.72); border: 0; color: #fff; font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 4px; box-shadow: none; pointer-events: none; }
+  .leaflet-tooltip.dimlbl::before { display: none; }
+  .leaflet-tooltip.dimlbl.live { background: #e2a93b; color: #111; }
+  .leaflet-tooltip.dimlbl.area { background: rgba(20,20,24,.85); font-size: 12px; text-align: center; line-height: 1.25; padding: 3px 7px; }
+  .leaflet-tooltip.dimlbl.area span { font-weight: 400; opacity: .75; font-size: 10.5px; }
   #mselbar { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); z-index: 1001; display: none; align-items: center; gap: 6px;
     background: rgba(20,20,24,.94); border: 1px solid #5fd3ff; border-radius: 10px; padding: 6px 8px; box-shadow: 0 6px 20px rgba(0,0,0,.5); white-space: nowrap; max-width: calc(100% - 24px); overflow-x: auto; }
   #mselbar.show { display: flex; }
@@ -1112,7 +1117,35 @@ function drawDraftShape() {
   if (draft && draft.kind === 'route') { renderRouteEdit(); return; }
   clearRouteEdit();
   if (draft && (draft.pos || (draft.points && draft.points.length >= 3))) draftLayer = buildLayer(draft, true).addTo(map);
+  if (tool !== 'poly') drawDims(draft?.kind === 'polygon' && $('form').classList.contains('show') ? draft.points : null, true);
 }
+// ---------- live measurements while drawing: each edge's length, the line to the cursor, and the area ----------
+let dimLayer = null, polyCursor = null;
+function drawDims(pts, closed, cursor) {
+  dimLayer?.remove(); dimLayer = null;
+  if (!pts || !pts.length) return;
+  const g = dimLayer = L.layerGroup().addTo(map);
+  const lbl = (p, txt, cls) => L.tooltip({ permanent: true, direction: 'center', className: 'dimlbl ' + (cls || ''), interactive: false }).setLatLng(ll(p)).setContent(txt).addTo(g);
+  const px = p => map.latLngToContainerPoint(ll(p));
+  const segs = [];
+  for (let i = 1; i < pts.length; i++) segs.push([pts[i - 1], pts[i]]);
+  if (closed && pts.length >= 3) segs.push([pts.at(-1), pts[0]]);
+  for (const [a, b] of segs)
+    if (px(a).distanceTo(px(b)) > 46) lbl([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], fmtDist(Math.hypot(b[0] - a[0], b[1] - a[1])));
+  if (cursor) {
+    const last = pts.at(-1);
+    L.polyline([ll(last), ll(cursor)], { color: '#fff', weight: 1.5, dashArray: '3 5', opacity: .9, interactive: false }).addTo(g);
+    if (pts.length >= 2) L.polyline([ll(cursor), ll(pts[0])], { color: '#fff', weight: 1, dashArray: '2 6', opacity: .45, interactive: false }).addTo(g);
+    lbl([(last[0] + cursor[0]) / 2, (last[1] + cursor[1]) / 2], fmtDist(Math.hypot(cursor[0] - last[0], cursor[1] - last[1])), 'live');
+  }
+  const ring = cursor ? [...pts, cursor] : pts;
+  if (ring.length >= 3) {
+    const f = { kind: 'polygon', points: ring };
+    const c = centerOf(f);
+    lbl(c, `${fmtArea(areaOf(f))}<br><span>${fmtDist(perimOf(f))} around</span>`, 'area');
+  }
+}
+map.on('zoomend', () => { if (tool === 'poly') drawDims(polyPts, false, polyCursor); else if (draft?.kind === 'polygon' && $('form').classList.contains('show')) drawDims(draft.points, true); });
 
 // ---------- edit handles: drag corners, drag the small dots to add a corner ----------
 let handles = null, vSel = -1, draftHist = [], polyRedo = [];
@@ -1168,7 +1201,13 @@ function showSnap(s) {
     { permanent: true, direction: 'right', offset: [8, 0], className: 'lbl snapl' });
 }
 function snapDrag(q, m, e) { const p = snapPt(m.getLatLng(), e?.originalEvent); q[0] = p[0]; q[1] = p[1]; m.setLatLng(ll(p)); }
-map.on('mousemove', e => { if (tool === 'poly' || tool === 'box') snapPt(e.latlng, e.originalEvent); else if (snapRing && !boxDrag) showSnap(null); });
+map.on('mousemove', e => {
+  if (tool === 'poly' || tool === 'box') {
+    const p = snapPt(e.latlng, e.originalEvent);
+    if (tool === 'poly' && polyPts.length) { polyCursor = p; drawDims(polyPts, false, p); }
+  } else if (snapRing && !boxDrag) showSnap(null);
+});
+map.on('mouseout', () => { if (tool === 'poly' && polyCursor) { polyCursor = null; drawDims(polyPts, false); } });
 function removeVertex(i) {
   if (!draft?.points) return;
   if (draft.points.length <= 3) return toast('An area needs at least 3 corners');
@@ -1508,7 +1547,7 @@ function setHint(text, showDone) {
 }
 function cancelTool() {
   const tool0 = tool;
-  tool = null; polyPts = []; drawPolyPreview(); endBoxDrag(); showSnap(null);
+  tool = null; polyPts = []; polyCursor = null; drawPolyPreview(); endBoxDrag(); showSnap(null);
   measurePts = []; measureLayer?.remove(); measureLayer = null;
   $('tMeasure').classList.remove('on'); $('tNav').classList.remove('on');
   if (!$('form').classList.contains('show')) { draft = null; editingId = null; }
@@ -1544,6 +1583,7 @@ function nextCompoundNum(parentId) { return 1 + Math.max(0, ...compoundsOf(paren
 let polyPreview = null;
 function drawPolyPreview() {
   polyPreview?.remove(); polyPreview = null;
+  if (tool === 'poly') drawDims(polyPts, false, polyCursor); else if (!draft || draft.kind !== 'polygon') drawDims(null);
   if (tool === 'poly' && polyPts.length) {
     const line = L.polyline(polyPts.map(ll), { color: '#fff', weight: 2, dashArray: '6 5', interactive: false });
     polyPreview = L.featureGroup([line]).addTo(map);
@@ -1551,7 +1591,7 @@ function drawPolyPreview() {
     polyPts.forEach((p, i) => {
       const m = L.marker(ll(p), { draggable: true, keyboard: false, zIndexOffset: 1500, icon: vIcon(i === 0 && polyPts.length >= 3 ? 'first' : ''),
         title: i === 0 && polyPts.length >= 3 ? 'Click to close the shape' : 'Drag to move' }).addTo(polyPreview);
-      m.on('drag', e => { snapDrag(p, m, e); line.setLatLngs(polyPts.map(ll)); });
+      m.on('drag', e => { snapDrag(p, m, e); line.setLatLngs(polyPts.map(ll)); drawDims(polyPts, false); });
       m.on('dragend', () => showSnap(null));
       m.on('click', e => { L.DomEvent.stop(e); if (i === 0 && polyPts.length >= 3) finishPoly(); });
     });
@@ -1725,7 +1765,7 @@ $('mselClear').onclick = clearSel;
 L.DomEvent.disableClickPropagation($('mselbar'));
 function finishPoly() {
   if (polyPts.length < 3) { toast('Need at least 3 points'); return; }
-  draft.points = polyPts.slice(); polyPts = []; tool = null;
+  draft.points = polyPts.slice(); polyPts = []; tool = null; polyCursor = null;
   drawPolyPreview(); setHint(''); renderDraft(); openForm();
 }
 function drawMeasure() {
@@ -2427,6 +2467,7 @@ function openForm() {
   $('fTip').textContent = f.kind === 'polygon' ? 'Drag corners to adjust · drag or click the small dots to add a corner · right-click a corner (or select it and press Delete) to remove it · Backspace undoes' : f.kind === 'circle' ? 'Drag the middle to move it and the edge handle to resize · Backspace undoes' : f.kind === 'marker' ? 'Drag the handle to move it · Backspace undoes' : '';
   $('fTip').style.display = $('fTip').textContent ? '' : 'none';
   $('fMove').textContent = f.kind === 'polygon' ? 'Redraw' : 'Reposition';
+  if (f.kind === 'polygon') drawDims(f.points, true);
   const isRoute = f.kind === 'route';
   $('fMove').style.display = isRoute ? 'none' : '';
   $('fCatWrap').style.display = isRoute ? 'none' : '';
