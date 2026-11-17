@@ -201,12 +201,12 @@
   #mselbar .danger { color: #ff7b7b; }
   #mselbar .selc { position: relative; display: inline-flex; align-items: center; }
   #mselbar .selc input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  #presets, #tpls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
-  :is(#presets, #tpls) .pz { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line, #444); background: transparent; color: inherit; cursor: pointer; }
-  :is(#presets, #tpls) .pz:hover { border-color: #e2a93b; }
-  :is(#presets, #tpls) .pz.on { background: #e2a93b; color: #111; border-color: #e2a93b; font-weight: 600; }
-  :is(#presets, #tpls) .pz .x { opacity: .55; margin-left: 2px; padding: 0 2px; }
-  :is(#presets, #tpls) .pz .x:hover { opacity: 1; }
+  #presets, #tpls, #bms { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+  :is(#presets, #tpls, #bms) .pz { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line, #444); background: transparent; color: inherit; cursor: pointer; }
+  :is(#presets, #tpls, #bms) .pz:hover { border-color: #e2a93b; }
+  :is(#presets, #tpls, #bms) .pz.on { background: #e2a93b; color: #111; border-color: #e2a93b; font-weight: 600; }
+  :is(#presets, #tpls, #bms) .pz .x { opacity: .55; margin-left: 2px; padding: 0 2px; }
+  :is(#presets, #tpls, #bms) .pz .x:hover { opacity: 1; }
   #ctx .cc { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 6px 5px; }
   #ctx .cc button { font-size: 12px; padding: 3px 8px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 14%, transparent); }
   #ctx .cc button:hover { background: color-mix(in srgb, var(--c) 32%, transparent); }
@@ -384,6 +384,10 @@
           <button class="linkbtn h2btn" id="presetSave" title="Save which marker types and map info are on as a quick view">save current</button>
         </h2>
         <div id="presets"></div>
+        <h2>Saved spots
+          <button class="linkbtn h2btn" id="bmSave" title="Save the current view to the next free number (or press Shift+1…9)">save view</button>
+        </h2>
+        <div id="bms"><div class="dim" style="font-size:12px">Press Shift+1…9 to save the current view, then 1…9 to jump back.</div></div>
         <div id="tplWrap" style="display:none">
           <h2>Templates</h2>
           <div id="tpls" class="presets"></div>
@@ -3457,6 +3461,41 @@ $('presetSave').onclick = () => {
   toast(`Saved "${name}"`);
 };
 // keep the highlighted view in step when someone ticks boxes by hand
+// ---------- saved spots: Shift+1…9 saves the current view, 1…9 jumps back (per map) ----------
+const bmKey = 'fm:bm:' + MAPDEF.id;
+let bms = ls.get(bmKey, {});
+function saveBm(n) {
+  const c = map.getCenter(), p = [Math.round(c.lng), Math.round(c.lat)];
+  const name = (placeInfo(p) || fmt(p)).replace(/^In /, '');
+  bms[n] = { c: [c.lat, c.lng], z: map.getZoom(), name };
+  ls.set(bmKey, bms); renderBms();
+  toast(`Saved spot ${n}: ${name} · press ${n} to come back`);
+}
+function goBm(n) {
+  const b = bms[n];
+  if (!b) return toast(`Nothing saved on ${n} yet · Shift+${n} saves this view`);
+  map.flyTo(b.c, b.z, { duration: .6 });
+}
+function renderBms() {
+  const box = $('bms'), keys = Object.keys(bms).sort();
+  box.replaceChildren();
+  if (!keys.length) box.append(el('div', { className: 'dim', style: 'font-size:12px', textContent: 'Press Shift+1…9 to save the current view, then 1…9 to jump back.' }));
+  for (const n of keys) {
+    const b = el('button', { type: 'button', className: 'pz', title: `Press ${n} · Shift+${n} overwrites`, onclick: () => { document.body.classList.remove('open'); goBm(n); } },
+      el('b', { textContent: n }), ' ' + bms[n].name);
+    b.append(el('span', { className: 'x', textContent: '×', title: 'Forget this spot', onclick: ev => { ev.stopPropagation(); delete bms[n]; ls.set(bmKey, bms); renderBms(); } }));
+    box.append(b);
+  }
+}
+$('bmSave').onclick = () => { const n = [1, 2, 3, 4, 5, 6, 7, 8, 9].find(i => !bms[i]) || 9; saveBm(n); };
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || !/^Digit[1-9]$/.test(e.code)) return;
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable || document.querySelector('.modal.show')) return;
+  e.preventDefault();
+  const n = e.code.slice(5);
+  e.shiftKey ? saveBm(n) : goBm(n);
+});
+renderBms();
 $('paneMap').addEventListener('change', e => { if (e.target.closest('#filters, #refs')) setTimeout(renderPresets); });
 renderPresets(); renderTemplates();
 
