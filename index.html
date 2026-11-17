@@ -358,7 +358,7 @@
         <h2>Settings</h2>
         <label for="zoomSpeed" style="margin-top:0">Scroll zoom speed: <span id="zoomSpeedVal"></span></label>
         <input id="zoomSpeed" type="range" min="0.25" max="4" step="0.25">
-        <div class="checks" style="grid-template-columns:1fr;margin-top:8px"><label><input type="checkbox" id="trToggle"> Show English meanings of place names</label><label><input type="checkbox" id="hovToggle"> Preview cards when hovering markers</label></div>
+        <div class="checks" style="grid-template-columns:1fr;margin-top:8px"><label><input type="checkbox" id="trToggle"> Show English meanings of place names</label><label><input type="checkbox" id="hovToggle"> Preview cards when hovering markers</label><label><input type="checkbox" id="snapToggle"> Snap to roads and other areas while drawing (hold Alt to skip)</label></div>
 
         <h2>Marker list</h2>
         <div id="list"></div>
@@ -1068,6 +1068,7 @@ function renderFeature(id) {
 }
 function renderAll() { for (const id of new Set([...layers.keys(), ...feats.keys()])) renderFeature(id); refreshSide(); }
 function renderDraft() {
+  showSnap(null);
   drawDraftShape();
   renderHandles();
 }
@@ -1084,6 +1085,55 @@ const vIcon = (cls) => L.divIcon({ className: '', iconSize: [16, 16], iconAnchor
 function snapDraft() { return JSON.stringify({ points: draft.points, pos: draft.pos, radius: draft.radius }); }
 function pushDraftHist() { if (!draft) return; draftHist.push(snapDraft()); if (draftHist.length > 200) draftHist.shift(); }
 function setFromLL(q, c) { q[0] = clampW(Math.round(c.lng)); q[1] = clampW(Math.round(c.lat)); }
+// ---------- snapping while drawing: corners of other areas, then their edges, then visible roads. Hold Alt to place freely ----------
+let snapOn = ls.get('fm:snap', true), snapRing = null;
+function snapTo(x, z, ev) {
+  if (!snapOn || ev?.altKey) return null;
+  const tol = 12 / (256 / TW * Math.pow(2, map.getZoom()));
+  let corner = null, cd = tol, edge = null, ed = tol * 0.8;
+  for (const f of feats.values()) {
+    if (f.kind !== 'polygon' || !f.points || f.id === draft?.id || !shown(f)) continue;
+    const pts = f.points;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const d = Math.hypot(a[0] - x, a[1] - z);
+      if (d < cd) { cd = d; corner = { p: [a[0], a[1]], kind: 'corner', f }; }
+      const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+      const u = l2 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
+      const px = a[0] + u * dx, pz = a[1] + u * dz, d2 = Math.hypot(x - px, z - pz);
+      if (d2 < ed) { ed = d2; edge = { p: [Math.round(px), Math.round(pz)], kind: 'edge', f }; }
+    }
+  }
+  if (corner) return corner;
+  if (edge) return edge;
+  if (refState.roads || refState.dirt) {
+    const s = nearestSeg(x, z, tol * 0.8);
+    if (s && (s.r.t ? refState.roads : refState.dirt)) {
+      // prefer the road's own vertex when close, so outlines line up with junctions
+      const f = s.r.f, va = [f[s.k - 2], f[s.k - 1]], vb = [f[s.k], f[s.k + 1]];
+      const near = Math.hypot(va[0] - x, va[1] - z) < tol * 0.6 ? va : Math.hypot(vb[0] - x, vb[1] - z) < tol * 0.6 ? vb : null;
+      return { p: near ? [Math.round(near[0]), Math.round(near[1])] : [Math.round(s.px), Math.round(s.pz)], kind: 'road' };
+    }
+  }
+  return null;
+}
+// latlng (+ event for Alt) -> [x, z], snapped when something is close; shows a ring where it snapped
+function snapPt(latlng, ev) {
+  const x = clampW(Math.round(latlng.lng)), z = clampW(Math.round(latlng.lat));
+  const s = snapTo(x, z, ev);
+  showSnap(s);
+  return s ? [clampW(s.p[0]), clampW(s.p[1])] : [x, z];
+}
+function showSnap(s) {
+  if (!s) { snapRing?.remove(); snapRing = null; return; }
+  const color = s.kind === 'road' ? '#f5c542' : '#5fd3ff';
+  if (!snapRing) snapRing = L.circleMarker(ll(s.p), { radius: 7, weight: 2, color, fill: false, interactive: false }).addTo(map);
+  else snapRing.setLatLng(ll(s.p)).setStyle({ color });
+  snapRing.unbindTooltip().bindTooltip(s.kind === 'road' ? 'Road' : s.kind === 'corner' ? `Corner of ${featTitle(s.f)}` : `Edge of ${featTitle(s.f)}`,
+    { permanent: true, direction: 'right', offset: [8, 0], className: 'lbl snapl' });
+}
+function snapDrag(q, m, e) { const p = snapPt(m.getLatLng(), e?.originalEvent); q[0] = p[0]; q[1] = p[1]; m.setLatLng(ll(p)); }
+map.on('mousemove', e => { if (tool === 'poly' || tool === 'box') snapPt(e.latlng, e.originalEvent); else if (snapRing && !boxDrag) showSnap(null); });
 function removeVertex(i) {
   if (!draft?.points) return;
   if (draft.points.length <= 3) return toast('An area needs at least 3 corners');
@@ -1100,14 +1150,14 @@ function renderHandles() {
       const m = L.marker(ll(mid), { draggable: true, keyboard: false, zIndexOffset: 1400, icon: vIcon('mid'), title: 'Drag or click to add a corner' }).addTo(g);
       let at = -1;
       m.on('dragstart', () => { pushDraftHist(); at = i + 1; pts.splice(at, 0, [Math.round(mid[0]), Math.round(mid[1])]); vSel = at; });
-      m.on('drag', () => { setFromLL(pts[at], m.getLatLng()); drawDraftShape(); });
+      m.on('drag', e => { snapDrag(pts[at], m, e); drawDraftShape(); });
       m.on('dragend', renderDraft);
       m.on('click', e => { L.DomEvent.stop(e); pushDraftHist(); pts.splice(i + 1, 0, [Math.round(mid[0]), Math.round(mid[1])]); vSel = i + 1; renderDraft(); });
     });
     pts.forEach((q, i) => {
       const m = L.marker(ll(q), { draggable: true, keyboard: false, zIndexOffset: 1500, icon: vIcon(i === vSel ? 'sel' : ''), title: 'Drag to move · right-click or Delete to remove' }).addTo(g);
       m.on('dragstart', () => { pushDraftHist(); vSel = i; });
-      m.on('drag', () => { setFromLL(q, m.getLatLng()); drawDraftShape(); });
+      m.on('drag', e => { snapDrag(q, m, e); drawDraftShape(); });
       m.on('dragend', renderDraft);
       m.on('click', e => { L.DomEvent.stop(e); vSel = i; renderHandles(); });
       m.on('contextmenu', e => { L.DomEvent.stopPropagation(e); L.DomEvent.preventDefault(e.originalEvent); removeVertex(i); });
@@ -1395,7 +1445,7 @@ function setHint(text, showDone) {
 }
 function cancelTool() {
   const tool0 = tool;
-  tool = null; polyPts = []; drawPolyPreview(); endBoxDrag();
+  tool = null; polyPts = []; drawPolyPreview(); endBoxDrag(); showSnap(null);
   measurePts = []; measureLayer?.remove(); measureLayer = null;
   $('tMeasure').classList.remove('on'); $('tNav').classList.remove('on');
   if (!$('form').classList.contains('show')) { draft = null; editingId = null; }
@@ -1438,7 +1488,8 @@ function drawPolyPreview() {
     polyPts.forEach((p, i) => {
       const m = L.marker(ll(p), { draggable: true, keyboard: false, zIndexOffset: 1500, icon: vIcon(i === 0 && polyPts.length >= 3 ? 'first' : ''),
         title: i === 0 && polyPts.length >= 3 ? 'Click to close the shape' : 'Drag to move' }).addTo(polyPreview);
-      m.on('drag', () => { setFromLL(p, m.getLatLng()); line.setLatLngs(polyPts.map(ll)); });
+      m.on('drag', e => { snapDrag(p, m, e); line.setLatLngs(polyPts.map(ll)); });
+      m.on('dragend', () => showSnap(null));
       m.on('click', e => { L.DomEvent.stop(e); if (i === 0 && polyPts.length >= 3) finishPoly(); });
     });
   }
@@ -1454,7 +1505,7 @@ function endBoxDrag() {
   boxDrag?.layer.remove(); boxDrag = null;
   if (!map.dragging.enabled()) map.dragging.enable();
 }
-function boxPt(ev) { const q = map.mouseEventToLatLng(ev); return [clampW(Math.round(q.lng)), clampW(Math.round(q.lat))]; }
+function boxPt(ev) { return snapPt(map.mouseEventToLatLng(ev), ev); }
 function drawBoxDrag() {
   const { a, b } = boxDrag;
   const bounds = L.latLngBounds(ll(a), ll(b));
@@ -1520,7 +1571,7 @@ map.on('click', e => {
   if (tool === 'place') {
     draft.pos = p; tool = null; setHint(''); renderDraft(); openForm();
   } else if (tool === 'poly') {
-    polyPts.push(p); drawPolyPreview();
+    polyPts.push(snapPt(e.latlng, e.originalEvent)); drawPolyPreview();
   } else if (tool === 'measure') {
     measurePts.push(p); drawMeasure();
   } else if (tool === 'nav') {
@@ -2090,6 +2141,8 @@ $('trToggle').checked = showTr;
 $('trToggle').onchange = e => { showTr = e.target.checked; ls.set('fm:tr', showTr); refLayer.draw(); };
 $('hovToggle').checked = ls.get('fm:hover', true) !== false;
 $('hovToggle').onchange = e => { ls.set('fm:hover', e.target.checked); hoverHide(); };
+$('snapToggle').checked = snapOn !== false;
+$('snapToggle').onchange = e => { snapOn = e.target.checked; ls.set('fm:snap', snapOn); showSnap(null); };
 $('mapSel').onchange = () => switchMap($('mapSel').value);
 function switchMap(id) {
   if (id === MAPDEF.id) return;
