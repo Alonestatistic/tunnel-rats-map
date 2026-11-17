@@ -177,12 +177,12 @@
   #mselbar .danger { color: #ff7b7b; }
   #mselbar .selc { position: relative; display: inline-flex; align-items: center; }
   #mselbar .selc input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  #presets { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
-  #presets .pz { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line, #444); background: transparent; color: inherit; cursor: pointer; }
-  #presets .pz:hover { border-color: #e2a93b; }
-  #presets .pz.on { background: #e2a93b; color: #111; border-color: #e2a93b; font-weight: 600; }
-  #presets .pz .x { opacity: .55; margin-left: 2px; padding: 0 2px; }
-  #presets .pz .x:hover { opacity: 1; }
+  #presets, #tpls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+  :is(#presets, #tpls) .pz { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line, #444); background: transparent; color: inherit; cursor: pointer; }
+  :is(#presets, #tpls) .pz:hover { border-color: #e2a93b; }
+  :is(#presets, #tpls) .pz.on { background: #e2a93b; color: #111; border-color: #e2a93b; font-weight: 600; }
+  :is(#presets, #tpls) .pz .x { opacity: .55; margin-left: 2px; padding: 0 2px; }
+  :is(#presets, #tpls) .pz .x:hover { opacity: 1; }
   #ctx .cc { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 6px 5px; }
   #ctx .cc button { font-size: 12px; padding: 3px 8px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 14%, transparent); }
   #ctx .cc button:hover { background: color-mix(in srgb, var(--c) 32%, transparent); }
@@ -360,6 +360,10 @@
           <button class="linkbtn h2btn" id="presetSave" title="Save which marker types and map info are on as a quick view">save current</button>
         </h2>
         <div id="presets"></div>
+        <div id="tplWrap" style="display:none">
+          <h2>Templates</h2>
+          <div id="tpls" class="presets"></div>
+        </div>
 
         <h2>Show</h2>
         <div class="checks" id="visFilters"></div>
@@ -426,6 +430,7 @@
     <label class="selc" title="Recolour them all">🎨 Colour<input type="color" id="mselColor" value="#e2a93b"></label>
     <select id="mselVis" title="Who can see them"><option value="">👁 Visibility…</option><option value="private">Only me</option><option value="faction">My faction</option><option value="server">Whole server</option></select>
     <button type="button" id="mselCopy" title="Ctrl+C, then Ctrl+V or right-click → Paste here">📄 Copy</button>
+    <button type="button" id="mselTpl" title="Save these as a reusable template">🧩 Template</button>
     <button type="button" id="mselDel" class="danger">🗑 Delete</button>
     <button type="button" id="mselClear" title="Clear selection (Esc)">✕</button>
   </div>
@@ -1705,6 +1710,39 @@ function stamp(items, at, label) {
   sel.clear(); for (const id of made) sel.add(id); drawSel();
   toast(`${label} · Backspace to undo`);
 }
+// templates: named, saved layouts (a base with its compounds, a checkpoint setup...) you can stamp anywhere, on any map
+let templates = ls.get('fm:templates', []), stampTpl = null;
+function saveTemplate(ids) {
+  const items = clipItems(ids);
+  if (!items.length) return toast('Select something first (Shift-click or Shift-drag)');
+  const name = (prompt(`Name this template (${plural(items.length, 'item')}), e.g. "Standard base" or "Road checkpoint":`) || '').trim().slice(0, 40);
+  if (!name) return;
+  // store relative to its own middle so it stamps the same anywhere
+  const [cx, cz] = groupCenter(items);
+  const rx = Math.round(cx), rz = Math.round(cz), sh = q => [q[0] - rx, q[1] - rz, ...q.slice(2)];   // no clamping: these go negative
+  const rel = items.map(f => { const c = clone(f); if (c.points) c.points = c.points.map(sh); if (c.pos) c.pos = sh(c.pos); return c; });
+  templates = [...templates.filter(t => t.name !== name), { name, items: rel }];
+  ls.set('fm:templates', templates); renderTemplates();
+  toast(`Saved template "${name}" · right-click the map → Stamp`);
+}
+function startStamp(t) {
+  closeForm(true); closeCtx(); cancelTool(); document.body.classList.remove('open');
+  stampTpl = t; tool = 'stamp';
+  setHint(`Click where "${t.name}" should go`);
+}
+function renderTemplates() {
+  const box = $('tpls'); if (!box) return; box.replaceChildren();
+  $('tplWrap').style.display = templates.length ? '' : 'none';
+  for (const t of templates) {
+    const b = el('button', { type: 'button', className: 'pz', textContent: `🧩 ${t.name}`, title: `${plural(t.items.length, 'item')} · click, then click the map`, onclick: () => startStamp(t) });
+    b.append(el('span', { className: 'x', textContent: '×', title: 'Delete this template', onclick: ev => {
+      ev.stopPropagation();
+      if (!confirm(`Delete the template "${t.name}"? Things already stamped stay.`)) return;
+      templates = templates.filter(q => q !== t); ls.set('fm:templates', templates); renderTemplates();
+    } }));
+    box.append(b);
+  }
+}
 function pasteAt(p) {
   const items = ls.get('fm:clip', []);
   if (!items.length) return toast('Nothing copied yet: select items and press Ctrl+C');
@@ -1812,6 +1850,7 @@ $('mselVis').onchange = e => {
 };
 $('mselDel').onclick = bulkDelete;
 $('mselCopy').onclick = () => copyItems([...sel]);
+$('mselTpl').onclick = () => saveTemplate([...sel]);
 $('mselClear').onclick = clearSel;
 L.DomEvent.disableClickPropagation($('mselbar'));
 function finishPoly() {
@@ -1839,6 +1878,9 @@ map.on('click', e => {
     polyPts.push(snapPt(e.latlng, e.originalEvent)); polyRedo = []; drawPolyPreview();
   } else if (tool === 'measure') {
     measurePts.push(p); drawMeasure();
+  } else if (tool === 'stamp') {
+    const t = stampTpl; stampTpl = null; tool = null; setHint('');
+    stamp(t.items, p, `Stamped ${t.name}`);
   } else if (tool === 'nav') {
     navClick(p);
   } else if (tool === 'route') {
@@ -1942,6 +1984,7 @@ function openCtx(e, featId) {
     for (const x of here.slice(0, 4)) box.append(ctxItem(catOf(x).icon, `Inside ${featTitle(x)}`, () => openInfo(x.id)));
     const clip = ls.get('fm:clip', []);
     if (clip.length) box.append(ctxItem('📋', `Paste ${plural(clip.length, 'item')} here`, () => pasteAt(p), { hint: 'Ctrl+V' }));
+    for (const t of templates.slice(0, 6)) box.append(ctxItem('🧩', `Stamp "${t.name}" here`, () => stamp(t.items, p, `Stamped ${t.name}`), { hint: plural(t.items.length, 'item') }));
     // start an area: pick a type, the outline starts where you right-clicked
     const shapeBtn = (v, t) => el('button', { type: 'button', className: areaShape === v ? 'on' : '', textContent: t, onclick: ev => {
       areaShape = v; ls.set('fm:areaShape', v);
@@ -3286,7 +3329,7 @@ $('presetSave').onclick = () => {
 };
 // keep the highlighted view in step when someone ticks boxes by hand
 $('paneMap').addEventListener('change', e => { if (e.target.closest('#filters, #refs')) setTimeout(renderPresets); });
-renderPresets();
+renderPresets(); renderTemplates();
 
 // ---------- start ----------
 buildStatic();
