@@ -1,10 +1,10 @@
-# Tunnel Rats Map
+﻿# Tunnel Rats Map
 
 Shared DayZ faction map: accounts, servers, factions, markers, compounds, notes, road GPS and an API.
 Map tiles come from iZurvive; all player data lives in Supabase.
 
 ## How it runs
-- **Website:** static files in this folder, hosted on Netlify. Every push to `main` deploys automatically.
+- **Website:** static files in this folder, hosted on GitHub Pages at https://alonestatistic.github.io/tunnel-rats-map/. Every push to `main` deploys automatically (about a minute).
 - **Data:** Supabase (accounts, servers, factions, markers, notes, API keys). Settings are in `config.js`.
 
 ## Files
