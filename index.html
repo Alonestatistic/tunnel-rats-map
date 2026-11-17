@@ -133,6 +133,13 @@
   #tools { position: absolute; right: 10px; top: 84px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
   #tools button { background: var(--panel); font-size: 12px; box-shadow: 0 1px 5px #0006; }
   #tools button.on { background: var(--accent); }
+  #announce { position: absolute; top: 88px; left: 50%; transform: translateX(-50%); z-index: 1001; width: min(460px, calc(100% - 240px)); display: none; gap: 8px; align-items: flex-start;
+    background: rgba(40,30,10,.95); border: 1px solid #e2a93b; border-radius: 10px; padding: 8px 10px; box-shadow: 0 6px 20px #000a; font-size: 13px; }
+  #announce.show { display: flex; }
+  #announce .at { flex: 1; min-width: 0; }
+  #annText { white-space: pre-wrap; word-break: break-word; max-height: 6.5em; overflow-y: auto; }
+  #annMeta { font-size: 11px; margin-top: 3px; }
+  #annClose { border: 0; background: none; color: inherit; opacity: .7; cursor: pointer; padding: 0 4px; }
   #miniWrap { position: absolute; right: 10px; bottom: 26px; z-index: 1000; width: 170px; height: 170px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 14px #000a; background: #111; }
   #miniWrap.off { width: 30px; height: 24px; }
   #miniWrap.off #mini { display: none; }
@@ -449,6 +456,7 @@
     <button id="tMeasure">Measure</button>
     <button id="tAct" title="What changed recently">🔔 Activity<span id="actBadge"></span></button>
   </div>
+  <div id="announce" role="status"><span class="ai">📌</span><div class="at"><div id="annText"></div><div id="annMeta" class="dim"></div></div><button id="annClose" title="Hide until it changes" aria-label="Hide">✕</button></div>
   <div id="miniWrap"><div id="mini"></div><button id="miniToggle" title="Hide the minimap">▾</button></div>
   <div id="act"><div class="ah"><b>Recent activity</b><button id="actClose" class="linkbtn" aria-label="Close">✕</button></div><div id="actList"></div></div>
   <div id="selbar" class="bar"><span id="selText"></span><button id="selRoute" class="primary">Make route</button><button id="selClear">Clear</button></div>
@@ -2973,7 +2981,7 @@ function refreshPanes() {
 async function leftServer() {
   ls.set('fm:server', null);
   if (channel) sb.removeChannel(channel);
-  channel = null; server = null; myRole = null; myFac = null; ONLINE = false;
+  channel = null; server = null; myRole = null; myFac = null; ONLINE = false; showAnnounce();
   factions.clear(); notes.clear(); feats.clear(); closeInfo();
   await localStore.init(); renderAll(); refreshPanes();
   $('who').textContent = `${me.username} · no server yet`;
@@ -2988,6 +2996,17 @@ async function logout() {
 }
 
 // ---------- servers ----------
+// ---------- pinned announcement (set by server admins) ----------
+function showAnnounce() {
+  const a = ONLINE && server && server.announcement && server.announcement.trim();
+  const key = 'fm:annSeen:' + server?.id;
+  if (!a || ls.get(key, null) === (server.announcement_at || server.announcement)) { $('announce').classList.remove('show'); return; }
+  $('annText').textContent = a;
+  $('annMeta').textContent = `Pinned by the server admins${server.announcement_at ? ' · ' + ago(server.announcement_at) : ''}`;
+  $('announce').classList.add('show');
+}
+$('annClose').onclick = () => { if (server) ls.set('fm:annSeen:' + server.id, server.announcement_at || server.announcement); $('announce').classList.remove('show'); };
+L.DomEvent.disableClickPropagation($('announce')); L.DomEvent.disableScrollPropagation($('announce'));
 async function loadServers() {
   const { data, error } = await sb.from('server_members').select('role, servers(*)').eq('user_id', me.id);
   if (error) { toast('Could not load servers: ' + error.message); servers = []; }
@@ -3063,7 +3082,7 @@ async function enterServer(sid) {
     await loadMeta();
     await loadFeatures();
   } catch (err) { console.error(err); setStatus('Sync error', 'err'); toast('Could not load the map: ' + err.message); return; }
-  subscribe();
+  subscribe(); showAnnounce();
 }
 async function loadMeta() {
   const sid = server.id;
@@ -3156,7 +3175,7 @@ function subscribe() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'faction_members', filter: f }, metaChanged)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: f }, metaChanged)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'faction_invites', filter: `user_id=eq.${me.id}` }, metaChanged)
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers', filter: `id=eq.${sid}` }, msg => { if (msg.new) { server = { ...server, ...msg.new }; loadServers(); if ($('paneServer').classList.contains('show')) renderServer(); } })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers', filter: `id=eq.${sid}` }, msg => { if (msg.new) { server = { ...server, ...msg.new }; loadServers(); showAnnounce(); if ($('paneServer').classList.contains('show')) renderServer(); } })
     .subscribe(st => {
       if (st === 'SUBSCRIBED') setStatus('Live', 'live');
       else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') setStatus('Reconnecting…', 'err');
@@ -3320,6 +3339,24 @@ function renderServer() {
         await loadServers(); toast('Saved');
         if (mapChanged && confirm('Switch your own view to the new map now?')) switchMap(ms.value);
       } }))));
+    // pinned announcement: shown to everyone on the server until they close it, and again when it changes
+    const an = el('textarea', { maxLength: 500, rows: 3, placeholder: 'e.g. Wipe on Friday 6pm · Trader moved to Gard Abad · No KOS in the safe zone', value: server.announcement || '' });
+    const saveAnn = async text => {
+      const v = text.trim() || null;
+      const { error } = await sb.from('servers').update({ announcement: v, announcement_at: v ? new Date().toISOString() : null }).eq('id', server.id);
+      if (error) return toast(/announcement/.test(error.message) ? 'The database needs updating first: run db/supabase-v3-announcements.sql in Supabase' : error.message);
+      server.announcement = v; server.announcement_at = v ? new Date().toISOString() : null;
+      ls.set('fm:annSeen:' + server.id, null); showAnnounce(); renderServer();
+      toast(v ? 'Announcement pinned for everyone' : 'Announcement removed');
+    };
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: '📌 Pinned announcement' }),
+      el('div', { className: 'dim', style: 'font-size:12px;margin-bottom:6px', textContent: 'Shown at the top of the map for every player on this server.' }), an,
+      el('div', { className: 'formbtns' },
+        el('button', { className: 'primary', textContent: server.announcement ? 'Update' : 'Pin it', onclick: () => saveAnn(an.value) }),
+        server.announcement ? el('button', { textContent: 'Remove', onclick: () => saveAnn('') }) : '')));
+  } else if (server.announcement) {
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: '📌 Pinned announcement' }), el('div', { style: 'white-space:pre-wrap', textContent: server.announcement }),
+      el('button', { className: 'linkbtn', textContent: 'Show on the map again', onclick: () => { ls.set('fm:annSeen:' + server.id, null); showAnnounce(); } })));
   }
   box.append(el('h2', { textContent: 'Players' }));
   for (const m of smembers.slice().sort((a, b) => ({ owner: 0, admin: 1, member: 2 })[a.role] - ({ owner: 0, admin: 1, member: 2 })[b.role] || uname(a.user_id).localeCompare(uname(b.user_id)))) {

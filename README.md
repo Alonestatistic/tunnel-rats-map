@@ -17,6 +17,7 @@ Map tiles come from iZurvive; all player data lives in Supabase.
 | `refdata.js`, `roads.js` | Nasdara towns, layers and road network (GPS) |
 | `flags.js` | Armband flags and their preset colours |
 | `db/supabase-v2.sql` | Database schema (already run). Kept for reference / new setups |
+| `db/supabase-v3-announcements.sql` | Adds pinned server announcements (already run). Run after v2 on new setups |
 | `db/supabase-setup.sql` | The old v1 table, still read by "Import from old version" |
 
 ## Run locally
