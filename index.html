@@ -1614,7 +1614,7 @@ function renderInfo() {
     const { data, error } = await sb.from('notes').insert({ feature_id: f.id, server_id: server.id, faction_id: nvis === 'crew' ? myFac : null, author: me.id, vis: nvis, body }).select().single();
     post.disabled = false;
     if (error) return toast('Note not saved: ' + error.message);
-    notes.set(data.id, data); ta.value = ''; renderInfo();
+    notes.set(data.id, data); ta.value = ''; renderInfo(); refreshSide();
   } });
   box.append(el('label', { textContent: `Add a note as ${me?.username || ''}` }), ta, sug, seg, post);
 }
@@ -1637,7 +1637,7 @@ async function delNote(id) {
   if (!confirm('Delete this note?')) return;
   const { error } = await sb.from('notes').delete().eq('id', id);
   if (error) return toast('Could not delete: ' + error.message);
-  notes.delete(id); renderInfo();
+  notes.delete(id); renderInfo(); refreshSide();
 }
 function zoomTo(f) {
   document.body.classList.remove('open');
@@ -3339,7 +3339,7 @@ function subscribe() {
       if (msg.old?.id && msg.old.id !== editingId) removeLocal(msg.old.id);
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notes' }, msg => {
-      if (msg.old?.id && notes.delete(msg.old.id) && infoId) renderInfo();
+      if (msg.old?.id && notes.delete(msg.old.id)) { if (infoId) renderInfo(); refreshSide(); }
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'features', filter: f }, onFeatRow)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'features', filter: f }, onFeatRow)
@@ -3348,7 +3348,7 @@ function subscribe() {
       const isNew = !notes.has(msg.new.id);
       notes.set(msg.new.id, msg.new); await loadProfiles([msg.new.author]);
       if (infoId) renderInfo();
-      refreshAct();
+      refreshSide();
       if (isNew && mentionsMe(msg.new)) { const f = feats.get(msg.new.feature_id); toast(`📣 ${uname(msg.new.author)} mentioned you${f ? ' on ' + featTitle(f) : ''}`); }
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'factions' }, metaChanged)
