@@ -129,6 +129,27 @@
   #tools button { background: var(--panel); font-size: 12px; box-shadow: 0 1px 5px #0006; }
   #tools button.on { background: var(--accent); }
   #tools #tNav.on { background: var(--gps); border-color: var(--gps); color: #001; }
+  #ctx { position: absolute; z-index: 1500; display: none; width: 250px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 5px; box-shadow: 0 8px 28px #000c; font-size: 13px; }
+  #ctx .ch { padding: 6px 9px 5px; border-left: 3px solid var(--c, var(--accent)); margin: 2px 2px 0; border-radius: 3px; }
+  #ctx .ch b { display: block; font-variant-numeric: tabular-nums; }
+  #ctx .ch .dim { font-size: 11.5px; }
+  #ctx > button { display: flex; align-items: center; gap: 9px; width: 100%; border: 0; background: none; padding: 6px 9px; border-radius: 6px; text-align: left; font-size: 13px; }
+  #ctx > button:hover:not(:disabled) { background: var(--panel2); }
+  #ctx > button.danger { color: var(--danger); }
+  #ctx .ci { width: 18px; text-align: center; flex: none; }
+  #ctx .k { margin-left: auto; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+  #ctx hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
+  #ctx .cl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); padding: 3px 9px 2px; }
+  #ctx .cl { display: flex; align-items: center; }
+  #ctx .cs { margin-left: auto; display: flex; gap: 2px; }
+  #ctx .cs button { font-size: 10.5px; text-transform: none; letter-spacing: 0; padding: 1px 7px; border-radius: 99px; background: none; color: var(--dim); }
+  #ctx .cs button.on { background: var(--accent); border-color: var(--accent); color: #1a1408; }
+  #ctx .cc { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 6px 5px; }
+  #ctx .cc button { font-size: 12px; padding: 3px 8px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 14%, transparent); }
+  #ctx .cc button:hover { background: color-mix(in srgb, var(--c) 32%, transparent); }
+  #ctx .cg { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; padding: 2px 4px 4px; }
+  #ctx .cg button { border: 1px solid transparent; background: none; padding: 5px 0; font-size: 16px; border-radius: 6px; }
+  #ctx .cg button:hover { background: var(--panel2); border-color: var(--line); }
   #menu { display: none; position: absolute; left: 10px; top: 10px; z-index: 1000; background: var(--panel); }
 
   .pin { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #000c; font-size: 11px;
@@ -351,6 +372,7 @@
   <div id="selbar" class="bar"><span id="selText"></span><button id="selRoute" class="primary">Make route</button><button id="selClear">Clear</button></div>
   <div id="navbar" class="bar"><span id="navText"></span><button id="navSwap">⇄ Swap</button><button id="navSave" class="primary">Save as route</button><button id="navClear">Clear</button></div>
   <div id="coords">– / –</div>
+  <div id="ctx" role="menu"></div>
 </div>
 
 <div id="auth" class="modal">
@@ -940,6 +962,7 @@ function buildLayer(f, isDraft) {
   }
   else if (f.kind === 'route') layer = routeLayer(f);
   else layer = buildZone(f, isDraft);
+  if (!isDraft) layer.on('contextmenu', e => { L.DomEvent.stopPropagation(e); L.DomEvent.preventDefault(e.originalEvent); if (!tool) openCtx(e, f.id); });
   if (!isDraft) layer.on('click', e => { L.DomEvent.stop(e); if (tool) { map.fire('click', { latlng: e.latlng, originalEvent: e.originalEvent }); return; } openInfo(f.id); });
   return layer;
 }
@@ -1300,24 +1323,135 @@ map.on('click', e => {
   }
 });
 map.on('dblclick', () => { if (tool === 'poly') { polyPts.pop(); finishPoly(); } });
+// ---------- right-click menu ----------
+const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+function placeInfo(p) {
+  let best = null, bd = Infinity;
+  for (const t of REF.towns) { const d = Math.hypot(t[2] - p[0], t[3] - p[1]); if (d < bd) { bd = d; best = t; } }
+  if (!best) return '';
+  if (bd < 150) return `In ${townName(best)}`;
+  const ang = Math.atan2(p[0] - best[2], p[1] - best[3]);   // bearing from the town, 0 = north
+  return `${fmtDist(bd)} ${DIRS[Math.round(((ang * 180 / Math.PI) + 360) % 360 / 45) % 8]} of ${townName(best)}`;
+}
+function closeCtx() { $('ctx').style.display = 'none'; $('ctx').replaceChildren(); }
+function addAt(catId, p, kind) {
+  closeCtx(); closeForm(true); closeInfo(); cancelTool();
+  const c = CAT[catId], pos = [clampW(p[0]), clampW(p[1])], k = kind || c.shape;
+  draft = newDraft(catId, k);
+  if (k === 'polygon') {
+    tool = 'poly'; draft.points = []; polyPts = [pos]; drawPolyPreview();
+    setHint(`${c.name}: keep clicking to outline it · right-click or Done to finish`, true); return;
+  }
+  draft.pos = pos;
+  if (k === 'circle') draft.radius = c.radius || 200;
+  renderDraft(); openForm();
+}
+// area types offered by "Start an area here"
+const AREA_TYPES = [['territory', 'Territory'], ['base', 'Our base'], ['enemy', 'Enemy base'], ['ally', 'Allied base'],
+  ['safezone', 'Safe zone'], ['danger', 'KOS zone'], ['raid', 'Raid area'], ['rp', 'RP area'], ['trader', 'Trader area'],
+  ['military', 'Military'], ['stash', 'Stash area'], ['poi', 'Other']];
+let areaShape = ls.get('fm:areaShape', 'polygon');
+function navFrom(p) {
+  closeCtx(); closeForm(true); cancelTool();
+  nav.a = p.slice(); nav.res = null;
+  if (nav.b) return navCompute();
+  tool = 'nav'; $('tNav').classList.add('on');
+  if (ROADS.length && !refState.roads) { refState.roads = true; buildRefUI(); applyRefs(); }
+  setHint('GPS: now click the destination'); drawNav();
+}
+function duplicate(id) {
+  const f = feats.get(id); if (!f) return;
+  const c = JSON.parse(JSON.stringify(dataOf(f)));
+  c.id = crypto.randomUUID(); c.name = (c.name ? c.name + ' ' : '') + '(copy)';
+  const sh = q => [clampW(q[0] + 60), clampW(q[1] - 60), ...q.slice(2)];
+  if (c.pos) c.pos = sh(c.pos);
+  if (c.points) c.points = c.points.map(sh);
+  if (c.cat === 'compound') delete c.num;
+  else delete c.parent;
+  closeForm(true); cancelTool();
+  draft = { ...c, $: { vis: f.$?.vis || defaultVis(c.cat), fac: myFac, owner: me?.id } };
+  if (draft.kind === 'route') return enterRouteTool();
+  renderDraft(); openForm();
+}
+function ctxItem(icon, text, act, opts = {}) {
+  return el('button', { type: 'button', className: opts.danger ? 'danger' : '', disabled: !!opts.disabled, title: opts.title || '',
+    onclick: () => { closeCtx(); act(); } }, el('span', { className: 'ci', textContent: icon }), el('span', { textContent: text }),
+    opts.hint ? el('span', { className: 'k', textContent: opts.hint }) : '');
+}
+function openCtx(e, featId) {
+  closeCtx(); map.closePopup();
+  const box = $('ctx'), p = xz(e.latlng), hr = () => el('hr');
+  const f = featId && feats.get(featId);
+  if (f) {
+    const c = colorOf(f), ctr = centerOf(f), ed = canEdit(f);
+    box.append(el('div', { className: 'ch', style: `--c:${c}` },
+      el('b', {}, f.flag && FLAG[f.flag] ? el('span', { className: 'miniflag', innerHTML: flagSvg(f.flag) }) : '', `${catOf(f).icon} ${featTitle(f)}`),
+      el('div', { className: 'dim', textContent: `${catOf(f).name}${isZone(f) ? ' · ' + fmtArea(areaOf(f)) : ''}${f.kind === 'route' ? ' · ' + fmtDist(routeLen(f.points)) : ''}` })));
+    box.append(hr(),
+      ctxItem('ℹ️', 'Open info & notes', () => openInfo(f.id)),
+      ctxItem('✏️', 'Edit', () => startEdit(f.id), { disabled: !ed, title: ed ? '' : "You can't edit this one" }),
+      f.kind !== 'route' ? ctxItem('↔️', f.kind === 'polygon' ? 'Redraw outline' : 'Move', () => { startEdit(f.id); $('fMove').click(); }, { disabled: !ed }) : '',
+      ctxItem('🗐', 'Duplicate', () => duplicate(f.id)));
+    if (['base', 'territory', 'ally', 'enemy'].includes(f.cat))
+      box.append(ctxItem('🏚️', `Add compound #${nextCompoundNum(f.id)}`, () => startCompound(f.id)));
+    box.append(hr(),
+      ctxItem('🧭', 'Navigate here', () => navTo(ctr)),
+      ctxItem('🚩', 'Navigate from here', () => navFrom(ctr)),
+      ctxItem('🎯', 'Zoom to it', () => zoomTo(f)),
+      ctxItem('📋', 'Copy coordinates', () => copy(fmt(ctr)), { hint: fmt(ctr) }),
+      hr(),
+      ctxItem('🗑️', 'Delete', () => del(f.id), { danger: true, disabled: !ed }));
+  } else {
+    const here = [...feats.values()].filter(x => shown(x) && isZone(x) && inside(x, p));
+    box.append(el('div', { className: 'ch' }, el('b', { textContent: fmt(p) }), el('div', { className: 'dim', textContent: placeInfo(p) })));
+    for (const x of here.slice(0, 4)) box.append(ctxItem(catOf(x).icon, `Inside ${featTitle(x)}`, () => openInfo(x.id)));
+    // start an area: pick a type, the outline starts where you right-clicked
+    const shapeBtn = (v, t) => el('button', { type: 'button', className: areaShape === v ? 'on' : '', textContent: t, onclick: ev => {
+      areaShape = v; ls.set('fm:areaShape', v);
+      for (const b of ev.target.parentNode.children) b.classList.toggle('on', b === ev.target);
+    } });
+    const chips = el('div', { className: 'cc' });
+    for (const [id, name] of AREA_TYPES)
+      chips.append(el('button', { type: 'button', style: `--c:${CAT[id].color}`, onclick: () => addAt(id, p, areaShape) }, `${CAT[id].icon} ${name}`));
+    box.append(hr(), el('div', { className: 'cl' }, 'Start an area here', el('span', { className: 'cs' }, shapeBtn('polygon', 'Outline'), shapeBtn('circle', 'Circle'))), chips);
+    box.append(hr(), el('div', { className: 'cl', textContent: 'Add a pin here' }));
+    const grid = el('div', { className: 'cg' });
+    for (const c of CATS) if (c.id !== 'route' && c.id !== 'compound' && c.id !== 'territory')
+      grid.append(el('button', { type: 'button', title: c.name, textContent: c.icon, onclick: () => addAt(c.id, p, 'marker') }));
+    box.append(grid);
+    const base = here.find(x => ['base', 'territory', 'ally', 'enemy'].includes(x.cat));
+    if (base) box.append(ctxItem('🏚️', `Add compound to ${featTitle(base)}`, () => { closeCtx(); startCompound(base.id); polyPts = [p]; drawPolyPreview(); }));
+    box.append(hr(),
+      ctxItem('🧭', 'Navigate here', () => navTo(p), { hint: nav.a ? 'from A' : '' }),
+      ctxItem('🚩', 'Navigate from here', () => navFrom(p)),
+      ctxItem('🛣️', 'Start a route here', () => { startRoute([p]); }),
+      ctxItem('📏', 'Measure from here', () => {
+        closeForm(true); cancelTool(); tool = 'measure'; $('tMeasure').classList.add('on'); measurePts = [p]; drawMeasure();
+      }),
+      hr(),
+      ctxItem('📋', 'Copy coordinates', () => copy(fmt(p)), { hint: fmt(p) }),
+      ctxItem('📍', 'Drop a temporary pin', () => goTo(p)),
+      ctxItem('🔍', 'Zoom in here', () => map.setView(e.latlng, Math.min(map.getMaxZoom(), map.getZoom() + 2))),
+      ctxItem('🗺️', 'Zoom out to the whole map', () => map.fitBounds(worldBounds)));
+  }
+  box.style.display = 'block';
+  const cp = e.containerPoint, W0 = $('mapwrap').clientWidth, H0 = $('mapwrap').clientHeight;
+  box.style.maxHeight = (H0 - 16) + 'px';
+  const bw = box.offsetWidth, bh = box.offsetHeight;
+  box.style.left = Math.max(8, Math.min(cp.x + 2, W0 - bw - 8)) + 'px';
+  box.style.top = Math.max(8, Math.min(cp.y + 2, H0 - bh - 8)) + 'px';
+}
 map.on('contextmenu', e => {
+  if (tool === 'poly' && polyPts.length >= 3) { finishPoly(); return; }
   if (tool) return;
-  const p = xz(e.latlng);
-  const box = el('div', { className: 'pop' },
-    el('h3', { textContent: fmt(p) }),
-    el('div', { className: 'row' },
-      el('button', { textContent: 'Copy coords', onclick: () => copy(fmt(p)) }),
-      el('button', { textContent: '🧭 GPS here', onclick: () => { map.closePopup(); navTo(p); } }),
-      el('button', { textContent: 'Add pin here', onclick: () => {
-        map.closePopup(); closeForm(true); cancelTool();
-        draft = newDraft('poi', 'marker'); draft.pos = [clampW(p[0]), clampW(p[1])];
-        renderDraft(); openForm();
-      } })));
-  L.popup().setLatLng(e.latlng).setContent(box).openOn(map);
+  openCtx(e);
 });
+map.on('click movestart zoomstart', closeCtx);
+document.addEventListener('mousedown', e => { if (!$('ctx').contains(e.target)) closeCtx(); }, true);
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('auth').classList.contains('show')) { $('auth').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('srvpick').classList.contains('show')) { $('srvpick').classList.remove('show'); return; }
+  if (e.key === 'Escape' && $('ctx').style.display === 'block') { closeCtx(); return; }
   if (e.key === 'Escape') { if (tool) cancelTool(); else if ($('form').classList.contains('show')) closeForm(); else if (infoId) closeInfo(); }
   if (e.key === 'Enter' && tool === 'poly') finishPoly();
 });
