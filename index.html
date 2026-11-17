@@ -504,7 +504,8 @@ const colorOf = f => { const c = baseColorOf(f), b = brOf(f); return b > 0 ? mix
 const isZone = f => f.kind === 'circle' || f.kind === 'polygon';
 const opOf = f => clampN(f.op, 0, 1, isZone(f) ? 0.22 : 1);
 const fillOf = f => ['stripes', 'none'].includes(f.fill) ? f.fill : 'solid';
-const featTitle = f => f.cat === 'compound' ? `Compound #${f.num || '?'}${f.name ? ' · ' + f.name : ''}` : (f.name || catOf(f).name);
+// compounds read 'Compound - 3' or 'Compound - Garage': the name if one was given, otherwise its number
+const featTitle = f => f.cat === 'compound' ? `Compound - ${f.name || f.num || nextCompoundNum(f.parent || null)}` : (f.name || catOf(f).name);
 
 // ---------- helpers ----------
 const ll = p => L.latLng(p[1], p[0]);              // [x, z] -> LatLng
@@ -1359,7 +1360,7 @@ function startCompound(parentId) {
   const p = feats.get(parentId);
   startAdd('compound', parentId);
   if (p) { const fl = p.flag; if (fl) { draft.flag = fl; draft.color = p.color || FLAG[fl]?.c[0]; } draft.$.vis = p.$?.vis === 'server' ? 'faction' : (p.$?.vis || draft.$.vis); }
-  setHint(`Compound #${nextCompoundNum(parentId)}: outline it on the map (3+ points)`, true);
+  setHint(`Compound - ${nextCompoundNum(parentId)}: outline it · right-click or Done to finish`, true);
 }
 function nextCompoundNum(parentId) { return 1 + Math.max(0, ...compoundsOf(parentId).map(c => c.num || 0)); }
 let polyPreview = null;
@@ -1489,7 +1490,7 @@ function openCtx(e, featId) {
       f.kind !== 'route' ? ctxItem('↔️', f.kind === 'polygon' ? 'Redraw outline' : 'Move', () => { startEdit(f.id); $('fMove').click(); }, { disabled: !ed }) : '',
       ctxItem('🗐', 'Duplicate', () => duplicate(f.id)));
     if (['base', 'territory', 'ally', 'enemy'].includes(f.cat))
-      box.append(ctxItem('🏚️', `Add compound #${nextCompoundNum(f.id)}`, () => startCompound(f.id)));
+      box.append(ctxItem('🏚️', `Add compound - ${nextCompoundNum(f.id)}`, () => startCompound(f.id)));
     box.append(hr(),
       ctxItem('🧭', 'Navigate here', () => navTo(ctr)),
       ctxItem('🚩', 'Navigate from here', () => navFrom(ctr)),
@@ -2051,7 +2052,7 @@ function openForm() {
   $('info').classList.remove('show');
   $('formTitle').textContent = (feats.has(f.id) ? 'Edit ' : 'New ') + (f.cat === 'compound' ? 'compound' : ({ marker: 'pin', circle: 'circle zone', polygon: 'area', route: 'route' })[f.kind]);
   $('fName').value = f.name || '';
-  $('fName').placeholder = f.cat === 'compound' ? 'Optional, e.g. Garage' : '';
+  $('fName').placeholder = f.cat === 'compound' ? `Number or name, e.g. Garage (blank = ${f.num || nextCompoundNum(f.parent || null)})` : '';
   $('fCat').value = catOf(f).id;
   $('fNotes').value = f.notes || '';
   $('fColor').value = rgbHex(hexRgb(baseColorOf(f)));
