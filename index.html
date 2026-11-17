@@ -1,0 +1,2538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>DayZ Faction Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --bg: #12100d; --panel: #1b1814; --panel2: #25211b; --line: #3a342a;
+    --text: #ece5d8; --dim: #a39a88; --accent: #e0a13a; --danger: #e5534b; --ok: #56b36a; --gps: #2ee6ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, "Segoe UI", sans-serif; display: flex; overflow: hidden; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: #1a1408; border-color: var(--accent); font-weight: 600; }
+  button.danger { color: var(--danger); }
+  button.on { background: var(--accent); color: #1a1408; border-color: var(--accent); }
+  input, select, textarea { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  label { display: block; font-size: 12px; color: var(--dim); margin: 10px 0 4px; }
+  .dim { color: var(--dim); font-size: 12.5px; }
+  .err { color: var(--danger); font-size: 12.5px; min-height: 1em; margin-top: 8px; }
+
+  #side { width: 340px; flex: none; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; z-index: 1001; }
+  #side header { padding: 10px 14px 0; border-bottom: 1px solid var(--line); }
+  #side h1 { font-size: 15px; margin: 0; letter-spacing: .3px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #srvSel { width: auto; max-width: 170px; padding: 3px 6px; font-size: 12px; }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row.wrap { flex-wrap: wrap; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+  .pill.live { color: var(--ok); border-color: var(--ok); }
+  .pill.err { color: var(--danger); border-color: var(--danger); }
+  .who { font-size: 12px; color: var(--dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font-size: 12px; }
+  #tabbar { display: flex; gap: 2px; margin-top: 8px; }
+  #tabbar button { flex: 1; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 7px 4px; font-size: 12.5px; color: var(--dim); }
+  #tabbar button.on { color: var(--text); border-bottom-color: var(--accent); }
+  #tabbar .dot { display: inline-block; min-width: 16px; padding: 0 4px; border-radius: 99px; background: var(--danger); color: #fff; font-size: 10px; margin-left: 3px; }
+  #scroll { flex: 1; overflow-y: auto; padding: 4px 14px 14px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin: 16px 0 8px; }
+  h3 { margin: 0; }
+  .seg { display: flex; gap: 4px; margin-bottom: 8px; }
+  .seg button { flex: 1; padding: 5px 4px; font-size: 12px; }
+  #palette { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  #palette button { text-align: left; padding: 6px 8px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; }
+  .checks label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--text); cursor: pointer; padding: 2px 0; }
+  .checks input { width: auto; }
+  .checks .n { color: var(--dim); margin-left: auto; font-size: 11px; }
+  .item { display: flex; gap: 8px; align-items: center; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+  .item:hover { background: var(--panel2); }
+  .item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .sub { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .empty { color: var(--dim); font-size: 12.5px; padding: 8px 0; }
+  #form, #info { display: none; }
+  #form.show, #info.show { display: block; }
+  #form.show ~ #panes, #info.show ~ #panes { display: none; }
+  .pane { display: none; }
+  .pane.show { display: block; }
+  .formbtns { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+  #side footer { padding: 10px 14px; border-top: 1px solid var(--line); display: flex; gap: 6px; }
+  #side footer button { flex: 1; font-size: 12px; }
+  .card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+  .card h3 { font-size: 15px; }
+  .mrow { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid #ffffff0d; font-size: 13px; }
+  .mrow:last-child { border-bottom: 0; }
+  .mrow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mrow button { font-size: 11px; padding: 2px 7px; }
+  .badge { font-size: 10.5px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+  .badge.lead { color: var(--accent); border-color: var(--accent); }
+  .code { font-family: ui-monospace, Consolas, monospace; font-size: 15px; letter-spacing: 2px; background: var(--bg); border: 1px dashed var(--line); padding: 4px 10px; border-radius: 6px; user-select: all; }
+  .keybox { font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all; background: var(--bg); border: 1px solid var(--accent); padding: 8px; border-radius: 6px; user-select: all; }
+  .flagsvg { display: block; width: 100%; height: auto; border-radius: 3px; }
+  .flaggrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 6px; max-height: 220px; overflow-y: auto; padding: 2px; }
+  .flaggrid button { padding: 2px; border-radius: 5px; background: var(--bg); }
+  .flaggrid button.on { outline: 2px solid var(--accent); }
+  .flaggrid .none { font-size: 10px; color: var(--dim); }
+  .flagbtn { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; }
+  .flagbtn .fl { width: 42px; flex: none; }
+  .miniflag { display: inline-block; width: 22px; vertical-align: -3px; margin-right: 4px; }
+  .ihead { display: flex; gap: 10px; align-items: center; margin: 6px 0 4px; padding: 10px; border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 30%, transparent), transparent 70%); border: 1px solid color-mix(in srgb, var(--c) 60%, transparent); }
+  .ihead .iflag { width: 64px; flex: none; filter: drop-shadow(0 2px 6px #000a); }
+  .ihead h3 { font-size: 16px; }
+  .meta { color: var(--dim); font-size: 12px; }
+  dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 10px 0; font-size: 12.5px; }
+  dl.facts dt { color: var(--dim); }
+  dl.facts dd { margin: 0; word-break: break-word; }
+  .desc { white-space: pre-wrap; word-break: break-word; background: var(--panel2); border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-size: 13px; }
+  .note { border-left: 3px solid var(--line); padding: 6px 8px; margin: 6px 0; background: #ffffff06; border-radius: 0 6px 6px 0; }
+  .note.private { border-color: #9a7bff; }
+  .note.crew { border-color: var(--ok); }
+  .note.server { border-color: var(--accent); }
+  .note .nb { white-space: pre-wrap; word-break: break-word; font-size: 13px; margin-top: 2px; }
+  .note .nh { display: flex; gap: 6px; align-items: center; font-size: 11.5px; color: var(--dim); }
+  .note .nh b { color: var(--text); }
+  .fields .checks { margin-top: 2px; }
+
+  #mapwrap { flex: 1; position: relative; min-width: 0; user-select: none; -webkit-user-select: none; }
+  #mapwrap input { user-select: text; -webkit-user-select: text; }
+  #map { position: absolute; inset: 0; background: #0c0b09; }
+  #topsearch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1002; width: min(420px, calc(100% - 330px)); }
+  #topsearch input { background: var(--panel); border-color: var(--line); border-radius: 99px; padding: 9px 34px 9px 16px; box-shadow: 0 2px 10px #0008; }
+  #searchClear { position: absolute; right: 6px; top: 5px; border: 0; background: none; color: var(--dim); padding: 3px 8px; font-size: 15px; display: none; }
+  #results { display: none; margin-top: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px; max-height: min(60vh, 420px); overflow-y: auto; box-shadow: 0 6px 20px #000a; }
+  #results.show { display: block; }
+  #results .item.sel { background: var(--panel2); }
+  #results .grp { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); padding: 6px 8px 2px; }
+  .bar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 1000; display: none; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; box-shadow: 0 4px 16px #000a; max-width: calc(100% - 24px); font-size: 13px; flex-wrap: wrap; justify-content: center; }
+  .bar button { font-size: 12px; white-space: nowrap; }
+  #navbar { border-color: var(--gps); box-shadow: 0 0 18px #2ee6ff44, 0 4px 16px #000a; }
+  #navText b { color: var(--gps); }
+  #navText .via { color: var(--dim); font-size: 12px; }
+  .wph { width: 12px; height: 12px; margin: 1px; border-radius: 50%; background: #fff; border: 2px solid #111; box-shadow: 0 0 3px #000; cursor: grab; }
+  .wph.named { background: var(--accent); }
+  .wph.sel { outline: 3px solid #35e0a1; }
+  .navpin { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #000; display: grid; place-items: center; font: 700 11px system-ui; color: #000; box-shadow: 0 0 10px var(--gps); cursor: grab; }
+  input[type=range] { padding: 0; border: 0; background: none; accent-color: var(--accent); }
+  #routeBox .tip { color: var(--dim); font-size: 12px; margin: 6px 0 8px; }
+  #routeInfo { font-weight: 600; margin-top: 10px; }
+  #hint { position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 1000; background: var(--accent); color: #1a1408; font-weight: 600; padding: 7px 14px; border-radius: 99px; display: none; max-width: 90%; text-align: center; box-shadow: 0 2px 10px #0008; }
+  #hint button { margin-left: 8px; padding: 2px 8px; background: #1a1408; color: var(--text); border: 0; font-size: 12px; }
+  #coords { position: absolute; left: 12px; bottom: 12px; z-index: 1000; background: #000b; padding: 4px 10px; border-radius: 6px; font-variant-numeric: tabular-nums; font-size: 13px; pointer-events: none; }
+  #tools { position: absolute; right: 10px; top: 84px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
+  #tools button { background: var(--panel); font-size: 12px; box-shadow: 0 1px 5px #0006; }
+  #tools button.on { background: var(--accent); }
+  #tools #tNav.on { background: var(--gps); border-color: var(--gps); color: #001; }
+  #menu { display: none; position: absolute; left: 10px; top: 10px; z-index: 1000; background: var(--panel); }
+
+  .pin { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #000c; font-size: 11px;
+    box-shadow: 0 0 0 1.5px #fff6 inset, 0 0 8px var(--g, #0000), 0 1px 4px #000c; transition: transform .12s; }
+  .leaflet-marker-icon:hover .pin { transform: scale(1.18); }
+  .ov-glow { filter: url(#ovGlow); pointer-events: none; }
+  .ov-pulse { animation: ovPulse 2.2s ease-in-out infinite; }
+  @keyframes ovPulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  .ov-main { transition: fill-opacity .15s; }
+  .leaflet-tooltip.zlbl { background: none; border: 0; box-shadow: none; padding: 0; }
+  .leaflet-tooltip.zlbl::before { display: none; }
+  .zl { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .zl span { display: inline-block; padding: 2px 9px; border-radius: 99px; background: #0b0d10d9; border: 1.5px solid var(--c); color: #fff;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .3px; box-shadow: 0 0 10px var(--c), 0 2px 6px #000c; text-shadow: 0 0 6px var(--c); white-space: nowrap; }
+  .zl .zf { width: 34px; filter: drop-shadow(0 1px 4px #000); }
+  .zl em { font-style: normal; font-size: 10.5px; color: #fff; background: #000a; padding: 0 6px; border-radius: 4px; white-space: nowrap; }
+  .zl.pinl span { font-size: 11px; padding: 1px 7px; }
+  .zl.pinl .zf { width: 24px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .swatches button { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid #000a; box-shadow: 0 0 6px var(--c); }
+  .swatches button:hover { transform: scale(1.12); }
+  .rangelbl { display: flex; justify-content: space-between; }
+  .rangelbl b { color: var(--text); font-weight: 600; }
+  .lbl { background: #000c; border: 0; color: #fff; font-size: 11px; padding: 0 5px; box-shadow: none; font-weight: 600; }
+  .lbl::before { display: none; }
+  .h2btn { float: right; text-transform: none; letter-spacing: 0; margin-left: 8px; }
+  .gridlbl { color: #fffb; font-size: 10px; text-shadow: 0 0 3px #000, 0 0 3px #000; white-space: nowrap; }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel); color: var(--text); }
+  .leaflet-popup-content { margin: 12px 14px; min-width: 190px; }
+  .pop h3 { margin: 0 0 2px; font-size: 15px; }
+  .pop .row { margin-top: 8px; flex-wrap: wrap; }
+  .pop button { font-size: 12px; padding: 4px 8px; }
+  .leaflet-container { font: inherit; }
+  .leaflet-control-layers { background: var(--panel); color: var(--text); border: 1px solid var(--line) !important; }
+  .leaflet-control-layers label { margin: 0; font-size: 13px; color: var(--text); }
+  .leaflet-control-layers input { width: auto; padding: 0; }
+
+  .modal { position: fixed; inset: 0; z-index: 3000; background: #000c; display: none; place-items: center; padding: 16px; overflow-y: auto; }
+  .modal.show { display: grid; }
+  .modal .box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; width: 380px; max-width: 100%; }
+  .modal h2 { font-size: 19px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 4px; }
+  .modal h3 { font-size: 13px; margin: 18px 0 4px; color: var(--accent); }
+  .modal p { color: var(--dim); font-size: 12.5px; margin: 4px 0 0; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 4000; background: var(--panel2); border: 1px solid var(--line); padding: 8px 14px; border-radius: 8px; display: none; max-width: 90vw; }
+
+  @media (max-width: 760px) {
+    #side { position: absolute; inset: 0 auto 0 0; width: min(340px, 90vw); transform: translateX(-100%); transition: transform .2s; }
+    body.open #side { transform: none; box-shadow: 0 0 30px #000; }
+    #menu { display: block; }
+    body.open #menu { left: calc(min(340px, 90vw) + 10px); }
+    #topsearch { left: 104px; right: 10px; width: auto; transform: none; }
+    body.open #topsearch { display: none; }
+    .leaflet-top.leaflet-right { top: 48px; }
+    .leaflet-top.leaflet-left { top: 44px; }
+    #tools { top: 108px; }
+  }
+</style>
+<script src="config.js"></script>
+<script src="maps.js"></script>
+<script src="flags.js"></script>
+<script>
+  // pick the map before anything else loads, then pull in that map's data
+  (function () {
+    var maps = window.MAPS || [], id = null;
+    try { id = JSON.parse(localStorage.getItem('fm:curmap')); } catch (e) {}
+    function ok(x) { return maps.some(function (m) { return m.id === x; }); }
+    if (!ok(id)) id = (window.MAP_CONFIG || {}).defaultMap;
+    if (!ok(id)) id = 'nasdara';
+    window.CUR_MAP = id;
+    if (id === 'nasdara') document.write('<script src="refdata.js"><\/script><script src="roads.js"><\/script>');
+    else document.write('<script src="mapdata/' + id + '.js"><\/script>');
+  })();
+</script>
+</head>
+<body>
+
+<aside id="side">
+  <header>
+    <div class="row">
+      <h1 id="title">Faction Map</h1>
+      <select id="srvSel" title="Switch server"></select>
+    </div>
+    <div class="row" style="margin-top:4px">
+      <span class="who" id="who"></span>
+      <button id="loginBtn" class="primary" style="display:none;padding:3px 10px;font-size:12px">Log in</button>
+      <span class="pill" id="status">Offline</span>
+    </div>
+    <nav id="tabbar">
+      <button data-tab="map" class="on">🗺️ Map</button>
+      <button data-tab="faction">🏴 Faction <span class="dot" id="invDot" style="display:none"></span></button>
+      <button data-tab="server">🖥️ Server</button>
+    </nav>
+  </header>
+
+  <div id="scroll">
+    <div id="form">
+      <h2 id="formTitle">New marker</h2>
+      <label for="fName">Name</label>
+      <input id="fName" maxlength="60" autocomplete="off">
+      <div id="fCatWrap">
+        <label for="fCat">Category</label>
+        <select id="fCat"></select>
+      </div>
+      <div id="fParentWrap">
+        <label for="fParent">Part of base</label>
+        <select id="fParent"></select>
+      </div>
+      <div id="fRadiusWrap">
+        <label for="fRadius">Radius (metres)</label>
+        <input id="fRadius" type="number" min="10" max="8000" step="10">
+      </div>
+      <div id="routeBox" style="display:none">
+        <div id="routeInfo"></div>
+        <div class="tip">Click the map to add points. Drag a point to adjust it. Click the line to insert a point. Shift+click a road to add it; Shift+click a road further away and the route follows the roads to it.</div>
+        <div class="row"><button type="button" id="rUndo">Undo last point</button><button type="button" id="rReverse">Reverse</button></div>
+        <div id="wpBox" style="display:none">
+          <label for="wpName" id="wpLabel">Waypoint</label>
+          <input id="wpName" maxlength="40" autocomplete="off" placeholder="Waypoint name, e.g. Fuel stop">
+          <div class="row" style="margin-top:6px"><button type="button" id="wpDelete" class="danger">Delete this point</button></div>
+        </div>
+      </div>
+      <div id="fFields" class="fields"></div>
+      <label>Who can see this</label>
+      <div class="seg" id="fVis"><button type="button" data-v="private">🔒 Only me</button><button type="button" data-v="faction">👥 My faction</button><button type="button" data-v="server">🌐 Whole server</button></div>
+      <label>Flag / armband</label>
+      <button type="button" id="fFlagBtn" class="flagbtn"></button>
+      <div id="fFlagGrid" class="flaggrid" style="display:none"></div>
+      <label for="fColor">Colour</label>
+      <div class="row">
+        <input id="fColor" type="color" style="width:52px;padding:2px;height:34px">
+        <button type="button" id="fColorReset" style="font-size:12px">Reset look</button>
+      </div>
+      <div class="swatches" id="flagSwatches"></div>
+      <div class="swatches" id="swatches"></div>
+      <label for="fBr" class="rangelbl"><span>Brightness</span><b id="fBrVal">0</b></label>
+      <input id="fBr" type="range" min="-60" max="60" step="5" value="0">
+      <label for="fOp" class="rangelbl"><span id="fOpName">Opacity</span><b id="fOpVal">100%</b></label>
+      <input id="fOp" type="range" min="0" max="100" step="5" value="100">
+      <div id="fFillWrap">
+        <label>Fill style</label>
+        <div class="seg" id="fFill"><button type="button" data-v="solid">Solid</button><button type="button" data-v="stripes">Stripes</button><button type="button" data-v="none">Outline only</button></div>
+      </div>
+      <label for="fNotes">Description</label>
+      <textarea id="fNotes" rows="3" maxlength="1000" placeholder="Shown to everyone who can see this marker. Use Notes for private or crew-only info."></textarea>
+      <div class="formbtns">
+        <button class="primary" id="fSave">Save</button>
+        <button id="fMove">Reposition</button>
+        <button id="fCancel">Cancel</button>
+        <button class="danger" id="fDelete">Delete</button>
+      </div>
+    </div>
+
+    <div id="info"></div>
+
+    <div id="panes">
+      <section class="pane show" id="paneMap">
+        <h2>Add to map</h2>
+        <div class="seg" id="shapeSeg">
+          <button data-shape="auto" title="Use each type's usual shape">Auto</button>
+          <button data-shape="marker">Pin</button>
+          <button data-shape="circle">Circle</button>
+          <button data-shape="polygon">Area</button>
+        </div>
+        <div id="palette"></div>
+
+        <h2>Show</h2>
+        <div class="checks" id="visFilters"></div>
+
+        <h2>Marker types
+          <button class="linkbtn h2btn" id="allOn">all</button>
+          <button class="linkbtn h2btn" id="allOff">none</button>
+        </h2>
+        <div id="filters" class="checks"></div>
+
+        <h2>Map info
+          <button class="linkbtn h2btn" id="refAll">all</button>
+          <button class="linkbtn h2btn" id="refNone">none</button>
+        </h2>
+        <div id="refs" class="checks"></div>
+
+        <h2>Map</h2>
+        <select id="mapSel" title="Switch the map you're viewing"></select>
+        <div class="dim" id="mapNote" style="margin-top:4px"></div>
+
+        <h2>Settings</h2>
+        <label for="zoomSpeed" style="margin-top:0">Scroll zoom speed: <span id="zoomSpeedVal"></span></label>
+        <input id="zoomSpeed" type="range" min="0.25" max="4" step="0.25">
+        <div class="checks" style="grid-template-columns:1fr;margin-top:8px"><label><input type="checkbox" id="trToggle"> Show English meanings of place names</label></div>
+
+        <h2>Marker list</h2>
+        <div id="list"></div>
+      </section>
+      <section class="pane" id="paneFaction"></section>
+      <section class="pane" id="paneServer"></section>
+    </div>
+  </div>
+
+  <footer>
+    <button id="btnExport">Export</button>
+    <button id="btnImport">Import</button>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </footer>
+</aside>
+
+<div id="mapwrap">
+  <div id="map"></div>
+  <button id="menu">☰ Menu</button>
+  <div id="topsearch">
+    <input id="search" type="search" placeholder="Search markers, towns, loot, or coords: 9630 4080" autocomplete="off" aria-label="Search the map">
+    <button id="searchClear" aria-label="Clear search">✕</button>
+    <div id="results"></div>
+  </div>
+  <div id="hint"><span id="hintText"></span><button id="hintDone">Done</button><button id="hintCancel">Cancel</button></div>
+  <div id="tools">
+    <button id="tNav" title="Road navigation: click a start and a destination">🧭 GPS</button>
+    <button id="tLabels" class="on">Labels</button>
+    <button id="tGrid">Grid</button>
+    <button id="tMeasure">Measure</button>
+  </div>
+  <div id="selbar" class="bar"><span id="selText"></span><button id="selRoute" class="primary">Make route</button><button id="selClear">Clear</button></div>
+  <div id="navbar" class="bar"><span id="navText"></span><button id="navSwap">⇄ Swap</button><button id="navSave" class="primary">Save as route</button><button id="navClear">Clear</button></div>
+  <div id="coords">– / –</div>
+</div>
+
+<div id="auth" class="modal">
+  <form id="authForm" class="box">
+    <h2 id="authTitle">Log in</h2>
+    <p>One account works on every server that uses this map.</p>
+    <div class="seg" id="authSeg" style="margin-top:12px"><button type="button" data-m="login" class="on">Log in</button><button type="button" data-m="signup">Create account</button></div>
+    <label for="aUser">Username</label>
+    <input id="aUser" autocomplete="username" maxlength="20" required pattern="[A-Za-z0-9_.\-]{3,20}" title="3–20 letters, numbers, _ . -">
+    <label for="aPass">Password</label>
+    <input id="aPass" type="password" autocomplete="current-password" minlength="6" required>
+    <div id="aPass2Wrap" style="display:none">
+      <label for="aPass2">Confirm password</label>
+      <input id="aPass2" type="password" autocomplete="new-password" minlength="6">
+      <p>There is no password-reset e-mail, so keep your password somewhere safe.</p>
+    </div>
+    <div class="err" id="aErr"></div>
+    <div class="formbtns"><button class="primary" type="submit" id="aGo">Log in</button><button type="button" id="aSkip">Continue without an account</button></div>
+    <p>Without an account you can still use the whole map; your markers are just saved in this browser and not shared.</p>
+  </form>
+</div>
+
+<div id="srvpick" class="modal">
+  <div class="box">
+    <h2>Pick a server</h2>
+    <p>Each DayZ server gets its own shared map. Factions live inside a server.</p>
+    <div id="spList" style="margin-top:8px"></div>
+    <h3>Join with a code</h3>
+    <div class="row"><input id="spCode" maxlength="12" placeholder="Server code or faction invite code" autocomplete="off"><button id="spJoin" class="primary">Join</button></div>
+    <h3>Start a new server map</h3>
+    <input id="spName" maxlength="60" placeholder="Server name, e.g. Badlands PvP #3">
+    <select id="spMap" style="margin-top:6px"></select>
+    <div class="formbtns"><button id="spCreate">Create server</button><button id="spClose" style="display:none">Cancel</button></div>
+    <div class="err" id="spErr"></div>
+    <p style="margin-top:14px"><button class="linkbtn" id="spLogout">Log out</button></p>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(() => {
+'use strict';
+const CFG = window.MAP_CONFIG || {};
+const MAPS = window.MAPS || [];
+const MAPDEF = MAPS.find(m => m.id === window.CUR_MAP) || { id: 'nasdara', title: 'Nasdara (Badlands)', size: 16384, T: 16384, ver: '1.30.3', fmt: 'webp', nz: 7, views: [['Nasdara-ImgSat', 'Satellite'], ['Nasdara-Top', 'Terrain']] };
+const W = MAPDEF.size, TW = MAPDEF.T;
+const HAS_SB = !!(CFG.supabaseUrl && CFG.supabaseAnonKey);
+let ONLINE = false;   // true once logged in and on a server; until then markers are kept in this browser
+const FLAGS = window.FLAGS || [], FLAG = window.FLAG || {};
+const $ = id => document.getElementById(id);
+const mapTitle = m => m.id === 'nasdara' ? 'Nasdara (Badlands)' : m.title;
+
+const CATS = [
+  { id: 'base',      name: 'Our base',        icon: '🏠', color: '#56b36a', shape: 'marker' },
+  { id: 'compound',  name: 'Compound',        icon: '🏚️', color: '#7fd1ff', shape: 'polygon' },
+  { id: 'ally',      name: 'Allied base',     icon: '🤝', color: '#58a6ff', shape: 'marker' },
+  { id: 'enemy',     name: 'Enemy base',      icon: '☠️', color: '#e5534b', shape: 'marker' },
+  { id: 'territory', name: 'Territory',       icon: '🚩', color: '#e0a13a', shape: 'polygon' },
+  { id: 'safezone',  name: 'Safe zone',       icon: '🛡️', color: '#3fd07a', shape: 'circle', radius: 300, vis: 'server' },
+  { id: 'danger',    name: 'Danger / KOS',    icon: '⚠️', color: '#ff5d52', shape: 'circle', radius: 250 },
+  { id: 'raid',      name: 'Raid area',       icon: '💣', color: '#ff2d55', shape: 'circle', radius: 150 },
+  { id: 'trap',      name: 'Trap',            icon: '🪤', color: '#ff7b00', shape: 'marker' },
+  { id: 'rp',        name: 'RP spot',         icon: '🎭', color: '#c77dff', shape: 'marker', vis: 'server' },
+  { id: 'trader',    name: 'Trader',          icon: '💰', color: '#f2cc60', shape: 'marker', vis: 'server' },
+  { id: 'vehicle',   name: 'Vehicle',         icon: '🚙', color: '#a98bfa', shape: 'marker' },
+  { id: 'military',  name: 'Military loot',   icon: '🎖️', color: '#9aa57a', shape: 'marker' },
+  { id: 'water',     name: 'Water',           icon: '💧', color: '#39c5cf', shape: 'marker' },
+  { id: 'medical',   name: 'Medical',         icon: '➕', color: '#ff8fa3', shape: 'marker' },
+  { id: 'stash',     name: 'Stash',           icon: '📦', color: '#c49a6c', shape: 'marker' },
+  { id: 'sighting',  name: 'Enemy sighting',  icon: '👁️', color: '#ff9b3d', shape: 'marker' },
+  { id: 'rally',     name: 'Rally point',     icon: '📍', color: '#f778ba', shape: 'marker' },
+  { id: 'poi',       name: 'Point of interest', icon: '⭐', color: '#ece5d8', shape: 'marker' },
+  { id: 'route',     name: 'Route',           icon: '🧭', color: '#ff5fd2', shape: 'route' },
+];
+const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+const catOf = f => CAT[f.cat] || CAT.poi;
+// extra fields per type, stored in feature.d
+const FIELDS = {
+  vehicle: [
+    { k: 'model', l: 'Vehicle', t: 'select', o: ['Ada 4x4', 'Olga 24', 'Sarka 120', 'Gunter 2', 'M3S truck', 'M1025 Humvee', 'Motorbike', 'Boat', 'Other'] },
+    { k: 'fuel', l: 'Fuel', t: 'range', min: 0, max: 100, step: 5, unit: '%' },
+    { k: 'state', l: 'Condition', t: 'select', o: ['Runs', 'Needs parts', 'Ruined', 'Hidden / parked'] },
+    { k: 'parts', l: 'Parts needed', t: 'checks', o: ['Wheels', 'Car battery', 'Truck battery', 'Spark plug', 'Glow plug', 'Radiator', 'Headlight', 'Doors', 'Hood', 'Trunk', 'Fuel', 'Engine repair'] },
+    { k: 'extra', l: 'Other details', t: 'text', ph: 'Colour, cargo, who has the keys…' },
+  ],
+  trap: [
+    { k: 'type', l: 'Trap type', t: 'select', o: ['Bear trap', 'Tripwire', 'Landmine', 'Claymore', 'Improvised explosive', 'Gas / fire trap', 'Other'] },
+    { k: 'armed', l: 'Status', t: 'select', o: ['Armed', 'Disarmed', 'Triggered', 'Unknown'] },
+    { k: 'extra', l: 'Details', t: 'text', ph: 'What it guards, how to get past…' },
+  ],
+  raid: [
+    { k: 'target', l: 'Target', t: 'text', ph: 'Whose base / what' },
+    { k: 'when', l: 'When', t: 'datetime' },
+    { k: 'status', l: 'Status', t: 'select', o: ['Planned', 'Scouting', 'Active', 'Done', 'Failed', 'Called off'] },
+    { k: 'team', l: 'Team', t: 'text', ph: 'Who is going' },
+  ],
+  rp: [
+    { k: 'type', l: 'RP type', t: 'select', o: ['Event', 'Meeting point', 'Market / trading', 'Prison', 'Hospital', 'Church', 'Bar / camp', 'Checkpoint', 'Story / lore spot', 'Other'] },
+    { k: 'when', l: 'When', t: 'text', ph: 'e.g. Saturdays 8pm server time' },
+    { k: 'host', l: 'Host / group', t: 'text' },
+  ],
+  compound: [
+    { k: 'state', l: 'Status', t: 'select', o: ['Built', 'Under construction', 'Planned', 'Raided', 'Abandoned'] },
+    { k: 'purpose', l: 'Used for', t: 'text', ph: 'Storage, garage, sleeping…' },
+  ],
+  base: [{ k: 'state', l: 'Status', t: 'select', o: ['Active', 'Under construction', 'Raided', 'Abandoned'] }],
+  enemy: [{ k: 'state', l: 'Status', t: 'select', o: ['Active', 'Under construction', 'Raided', 'Abandoned'] }],
+};
+const VIS = { private: '🔒 Only me', faction: '👥 Faction', server: '🌐 Whole server' };
+const NVIS = { private: '🔒 Private', crew: '👥 Crew', server: '🌐 Server' };
+
+const baseColorOf = f => f.color || catOf(f).color;
+const hexRgb = h => { h = String(h).replace('#', ''); if (h.length === 3) h = [...h].map(c => c + c).join(''); const n = parseInt(h, 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const rgbHex = a => '#' + a.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+const mix = (c, to, t) => { const a = hexRgb(c), b = hexRgb(to); return rgbHex(a.map((v, i) => v + (b[i] - v) * t)); };
+const clampN = (v, lo, hi, d) => Number.isFinite(+v) && v !== null && v !== '' ? Math.max(lo, Math.min(hi, +v)) : d;
+const brOf = f => clampN(f.br, -0.6, 0.6, 0);
+const colorOf = f => { const c = baseColorOf(f), b = brOf(f); return b > 0 ? mix(c, '#ffffff', b) : b < 0 ? mix(c, '#000000', -b) : rgbHex(hexRgb(c)); };
+const isZone = f => f.kind === 'circle' || f.kind === 'polygon';
+const opOf = f => clampN(f.op, 0, 1, isZone(f) ? 0.22 : 1);
+const fillOf = f => ['stripes', 'none'].includes(f.fill) ? f.fill : 'solid';
+const featTitle = f => f.cat === 'compound' ? `Compound #${f.num || '?'}${f.name ? ' · ' + f.name : ''}` : (f.name || catOf(f).name);
+
+// ---------- helpers ----------
+const ll = p => L.latLng(p[1], p[0]);              // [x, z] -> LatLng
+const xz = l => [Math.round(l.lng), Math.round(l.lat)];
+const fmt = p => `${Math.round(p[0])} / ${Math.round(p[1])}`;
+const clampW = v => Math.max(0, Math.min(W, v));
+const ls = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2800);
+}
+function ago(ts) {
+  if (typeof ts === 'string') ts = Date.parse(ts);
+  const s = Math.max(0, (Date.now() - ts) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+const dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const fmtDist = d => d >= 1000 ? (d / 1000).toFixed(2) + ' km' : Math.round(d) + ' m';
+const fmtArea = a => a >= 1e6 ? (a / 1e6).toFixed(2) + ' km²' : a >= 1e4 ? (a / 1e4).toFixed(2) + ' ha' : Math.round(a) + ' m²';
+function routeLen(pts) { let d = 0; for (let i = 1; i < pts.length; i++) d += dist2(pts[i], pts[i - 1]); return d; }
+function centerOf(f) {
+  if (f.kind === 'route') return f.points[Math.floor(f.points.length / 2)];
+  if (f.kind !== 'polygon') return f.pos;
+  const n = f.points.length;
+  return [f.points.reduce((a, p) => a + p[0], 0) / n, f.points.reduce((a, p) => a + p[1], 0) / n];
+}
+function areaOf(f) {
+  if (f.kind === 'circle') return Math.PI * f.radius * f.radius;
+  if (f.kind !== 'polygon') return 0;
+  let a = 0; const p = f.points;
+  for (let i = 0; i < p.length; i++) { const j = (i + 1) % p.length; a += p[i][0] * p[j][1] - p[j][0] * p[i][1]; }
+  return Math.abs(a) / 2;
+}
+function perimOf(f) {
+  if (f.kind === 'circle') return 2 * Math.PI * f.radius;
+  if (f.kind === 'polygon') return routeLen([...f.points, f.points[0]]);
+  return f.kind === 'route' ? routeLen(f.points) : 0;
+}
+function inside(f, p) {
+  if (f.kind === 'circle') return dist2(f.pos, p) <= f.radius;
+  if (f.kind !== 'polygon') return false;
+  let c = false; const q = f.points;
+  for (let i = 0, j = q.length - 1; i < q.length; j = i++)
+    if ((q[i][1] > p[1]) !== (q[j][1] > p[1]) && p[0] < (q[j][0] - q[i][0]) * (p[1] - q[i][1]) / (q[j][1] - q[i][1]) + q[i][0]) c = !c;
+  return c;
+}
+function el(tag, props, ...kids) {
+  const e = Object.assign(document.createElement(tag), props || {});
+  for (const k of kids) if (k != null && k !== false) e.append(k);
+  return e;
+}
+const esc = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+function valid(f) {
+  if (!f || typeof f.id !== 'string' || !['marker', 'circle', 'polygon', 'route'].includes(f.kind)) return false;
+  const pt = p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite);
+  if (f.kind === 'route') return Array.isArray(f.points) && f.points.length >= 2 && f.points.length <= 5000 &&
+    f.points.every(q => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1]) && (q.length === 2 || (q.length === 3 && typeof q[2] === 'string')));
+  return f.kind === 'polygon' ? Array.isArray(f.points) && f.points.length >= 3 && f.points.every(pt) : pt(f.pos);
+}
+function copy(text) {
+  (navigator.clipboard?.writeText(text) || Promise.reject()).then(() => toast('Copied ' + text), () => toast(text));
+}
+const flagSvg = id => (FLAG[id] || {}).svg || '';
+
+// ---------- map ----------
+const crs = L.extend({}, L.CRS.Simple, { transformation: new L.Transformation(256 / TW, 0, -256 / TW, 256) });
+const map = L.map('map', { crs, minZoom: 0, maxZoom: 9, zoomSnap: 0, zoomDelta: 0.5, wheelPxPerZoomLevel: 160, wheelDebounceTime: 15, doubleClickZoom: false, boxZoom: false, attributionControl: true });
+map.attributionControl.setPrefix(false);
+const worldBounds = L.latLngBounds([0, 0], [W, W]);
+map.setMaxBounds(worldBounds.pad(0.4));
+map.fitBounds(worldBounds);
+const bases = {};
+for (const [name, short] of MAPDEF.views) {
+  bases[short === 'Satellite' ? 'Satellite' : 'Topographic'] = L.tileLayer(`https://maps.izurvive.com/maps/${name}/${MAPDEF.ver}/tiles/{z}/{x}/{y}.${MAPDEF.fmt}`, {
+    tileSize: 256, minZoom: 0, maxZoom: 9, maxNativeZoom: MAPDEF.nz || 7,
+    bounds: L.latLngBounds([0, 0], [TW, TW]), noWrap: true, updateWhenZooming: false, keepBuffer: 1, attribution: 'Map tiles: iZurvive · DayZ © Bohemia Interactive',
+  });
+}
+const baseNames = Object.keys(bases);
+(bases[ls.get('fm:base', 'Satellite')] || bases[baseNames[0]])?.addTo(map);
+if (baseNames.length > 1) L.control.layers(bases, null, { position: 'topright', collapsed: false }).addTo(map);
+map.on('baselayerchange', e => ls.set('fm:base', e.name));
+L.rectangle(worldBounds, { color: '#e0a13a', weight: 1, fill: false, interactive: false, opacity: .5 }).addTo(map);
+map.on('mousemove', e => { $('coords').textContent = fmt(xz(e.latlng)); });
+
+const grid = L.layerGroup();
+for (let v = 0; v <= W; v += 1000) {
+  const st = { color: '#fff', weight: 1, opacity: .22, interactive: false };
+  L.polyline([[0, v], [W, v]], st).addTo(grid);
+  L.polyline([[v, 0], [v, W]], st).addTo(grid);
+  if (v + 1000 <= W + 999) {
+    const n = String(v / 1000).padStart(2, '0');
+    L.marker([W, v + 500], { interactive: false, icon: L.divIcon({ className: 'gridlbl', html: n, iconSize: [20, 12], iconAnchor: [10, 14] }) }).addTo(grid);
+    L.marker([v + 500, 0], { interactive: false, icon: L.divIcon({ className: 'gridlbl', html: n, iconSize: [20, 12], iconAnchor: [24, 6] }) }).addTo(grid);
+  }
+}
+
+// ---------- reference layers (towns, loot, water...) drawn on one canvas ----------
+const REF = window.REF_DATA || window.MAPDATA || { towns: [], layers: [], zones: [] };
+REF.zones = REF.zones || [];
+map.createPane('refPane').style.zIndex = 590;
+map.getPane('refPane').style.pointerEvents = 'none';
+const REFS = [{ id: 'towns', name: 'Town names', icon: '🏘️', on: true, n: REF.towns.length }];
+if (REF.zones.length) REFS.push({ id: 'gas', name: 'Toxic gas zones', icon: '☣️', on: false, n: REF.zones.length, color: '#b7e23a',
+  pts: REF.zones.map(([x, z, label]) => [x, z, label, 1]) });
+for (const l of REF.layers) REFS.push({ id: l.id, name: l.name, icon: l.icon, on: !!l.on, n: l.pts.length, color: l.color, pts: l.pts });
+const ROADS = (window.ROADS || []).map(([t, f]) => {
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, len = 0;
+  for (let j = 0; j < f.length; j += 2) {
+    x0 = Math.min(x0, f[j]); x1 = Math.max(x1, f[j]); z0 = Math.min(z0, f[j + 1]); z1 = Math.max(z1, f[j + 1]);
+    if (j) len += Math.hypot(f[j] - f[j - 2], f[j + 1] - f[j - 1]);
+  }
+  return { t, f, x0, x1, z0, z1, len };
+});
+const RCELL = 256, rgrid = new Map();
+for (const r of ROADS) for (let j = 2; j < r.f.length; j += 2) {
+  const ax = r.f[j - 2], az = r.f[j - 1], bx = r.f[j], bz = r.f[j + 1];
+  for (let cx = Math.floor(Math.min(ax, bx) / RCELL); cx <= Math.floor(Math.max(ax, bx) / RCELL); cx++)
+    for (let cz = Math.floor(Math.min(az, bz) / RCELL); cz <= Math.floor(Math.max(az, bz) / RCELL); cz++) {
+      const key = cx * 4096 + cz; let set = rgrid.get(key); if (!set) rgrid.set(key, set = new Set()); set.add(r);
+    }
+}
+if (ROADS.length) {
+  REFS.push({ id: 'roads', name: 'Paved roads', icon: '🛣️', on: false, n: ROADS.filter(r => r.t).length });
+  REFS.push({ id: 'dirt', name: 'Dirt tracks (rough)', icon: '〰️', on: false, n: ROADS.filter(r => !r.t).length });
+}
+const nkey = (x, z) => x * 20000 + z, rnodes = new Map();
+for (const r of ROADS) {
+  r.a = nkey(r.f[0], r.f[1]); r.b = nkey(r.f[r.f.length - 2], r.f[r.f.length - 1]);
+  for (const key of [r.a, r.b]) { let arr = rnodes.get(key); if (!arr) rnodes.set(key, arr = []); arr.push(r); }
+}
+function roadPath(fromKey, target) {
+  const best = new Map([[fromKey, 0]]), prev = new Map(), done = new Set(), open = [[0, fromKey]];
+  while (open.length) {
+    let mi = 0; for (let i = 1; i < open.length; i++) if (open[i][0] < open[mi][0]) mi = i;
+    const [d, u] = open.splice(mi, 1)[0];
+    if (done.has(u)) continue; done.add(u);
+    if (u === target.a || u === target.b) {
+      const path = []; let c = u;
+      while (prev.has(c)) { const [pu, r] = prev.get(c); path.unshift(r); c = pu; }
+      return path;
+    }
+    for (const r of rnodes.get(u) || []) {
+      if (!(r.t ? refState.roads : refState.dirt)) continue;
+      const v = r.a === u ? r.b : r.a, nd = d + r.len;
+      if (nd < (best.has(v) ? best.get(v) : Infinity)) { best.set(v, nd); prev.set(v, [u, r]); open.push([nd, v]); }
+    }
+  }
+  return null;
+}
+let roadHover = null;
+const roadSel = new Set();
+function roadDist(r, x, z) {
+  const f = r.f; let best = Infinity;
+  for (let j = 2; j < f.length; j += 2) {
+    const ax = f[j - 2], az = f[j - 1], dx = f[j] - ax, dz = f[j + 1] - az, l2 = dx * dx + dz * dz;
+    const u = l2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)) : 0;
+    const d = Math.hypot(x - ax - u * dx, z - az - u * dz);
+    if (d < best) best = d;
+  }
+  return best;
+}
+function hitRoad(latlng) {
+  if (!refState.roads && !refState.dirt) return null;
+  const x = latlng.lng, z = latlng.lat, tol = 9 / (256 / TW * Math.pow(2, map.getZoom()));
+  let best = null, bd = tol; const seen = new Set();
+  for (let cx = Math.floor((x - tol) / RCELL); cx <= Math.floor((x + tol) / RCELL); cx++)
+    for (let cz = Math.floor((z - tol) / RCELL); cz <= Math.floor((z + tol) / RCELL); cz++)
+      for (const r of rgrid.get(cx * 4096 + cz) || []) {
+        if (seen.has(r) || !(r.t ? refState.roads : refState.dirt)) continue;
+        seen.add(r);
+        const d = roadDist(r, x, z);
+        if (d < bd) { bd = d; best = r; }
+      }
+  return best;
+}
+function roadPts(r, rev) { const a = []; for (let j = 0; j < r.f.length; j += 2) a.push([r.f[j], r.f[j + 1]]); return rev ? a.reverse() : a; }
+const refState = Object.assign(Object.fromEntries(REFS.map(r => [r.id, r.on])), ls.get('fm:ref', {}));
+const gasGroup = L.layerGroup(REF.zones.map(([x, z, , rad]) =>
+  L.circle(ll([x, z]), { radius: rad, color: '#b7e23a', weight: 2, fillColor: '#b7e23a', fillOpacity: .25, interactive: false })));
+const TOWN_STYLE = { Capital: [16, '700'], City: [13, '600'], Village: [11.5, '600'] };
+const townsSorted = REF.towns.slice().sort((a, b) => a[4] - b[4]);
+let showTr = ls.get('fm:tr', false);
+const townName = t => t[5] && showTr ? `${t[0]} (${t[5]})` : t[0];
+
+const sprites = new Map();
+function sprite(r, size, dpr) {
+  const key = r.id + ':' + size + ':' + dpr;
+  let c = sprites.get(key);
+  if (c) return c;
+  c = document.createElement('canvas'); c.width = c.height = Math.ceil(size * dpr);
+  const g = c.getContext('2d'); g.scale(dpr, dpr);
+  g.fillStyle = r.color; g.strokeStyle = 'rgba(0,0,0,.7)'; g.lineWidth = 1;
+  g.beginPath();
+  if (size < 11) g.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+  else if (g.roundRect) g.roundRect(.5, .5, size - 1, size - 1, 3.5);
+  else g.rect(.5, .5, size - 1, size - 1);
+  g.fill(); g.stroke();
+  if (size >= 11) {
+    g.font = `${Math.round(size * .62)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#000';
+    g.fillText(r.icon, size / 2, size / 2 + 1);
+  }
+  sprites.set(key, c);
+  return c;
+}
+
+const RefLayer = L.Layer.extend({
+  onAdd(m) {
+    this._c = L.DomUtil.create('canvas', 'leaflet-zoom-animated', m.getPane('refPane'));
+    this._hits = [];
+    m.on('move zoom viewreset resize', this.draw, this);
+    m.on('zoomanim', this._anim, this);
+    this.draw();
+  },
+  onRemove(m) {
+    this._c.remove();
+    m.off('move zoom viewreset resize', this.draw, this);
+    m.off('zoomanim', this._anim, this);
+  },
+  _anim(e) {
+    const m = this._map;
+    L.DomUtil.setTransform(this._c, m._latLngBoundsToNewLayerBounds(this._bounds, e.zoom, e.center).min, m.getZoomScale(e.zoom, this._zoom));
+  },
+  draw() {
+    const m = this._map; if (!m) return;
+    const size = m.getSize(), dpr = Math.min(window.devicePixelRatio || 1, 2), c = this._c, zoom = m.getZoom();
+    if (c.width !== Math.round(size.x * dpr) || c.height !== Math.round(size.y * dpr)) {
+      c.width = Math.round(size.x * dpr); c.height = Math.round(size.y * dpr);
+      c.style.width = size.x + 'px'; c.style.height = size.y + 'px';
+    }
+    L.DomUtil.setTransform(c, m.containerPointToLayerPoint([0, 0]), 1);
+    this._bounds = m.getBounds(); this._zoom = zoom;
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, size.x, size.y);
+    const o = m.latLngToContainerPoint([0, 0]), k = 256 / TW * Math.pow(2, zoom);
+    const s = Math.round(Math.max(7, Math.min(16, 4 + zoom * 2.2))), h = s / 2;
+    const hits = this._hits = [];
+    if (ROADS.length && (refState.roads || refState.dirt || roadSel.size)) {
+      const vx0 = -o.x / k, vx1 = (size.x - o.x) / k, vz1 = o.y / k, vz0 = (o.y - size.y) / k;
+      const vis = r => !(r.x1 < vx0 || r.x0 > vx1 || r.z1 < vz0 || r.z0 > vz1);
+      const path = r => { const f = r.f; g.moveTo(o.x + f[0] * k, o.y - f[1] * k); for (let j = 2; j < f.length; j += 2) g.lineTo(o.x + f[j] * k, o.y - f[j + 1] * k); };
+      g.lineCap = g.lineJoin = 'round';
+      for (const t of [0, 1]) {
+        if (!(t ? refState.roads : refState.dirt)) continue;
+        g.beginPath(); for (const r of ROADS) if (r.t === t && vis(r)) path(r);
+        g.strokeStyle = t ? 'rgba(255,190,50,.85)' : 'rgba(110,200,255,.75)'; g.lineWidth = t ? 2 : 1.5; g.stroke();
+      }
+      if (roadSel.size) { g.beginPath(); for (const r of roadSel) if (vis(r)) path(r); g.strokeStyle = '#35e0a1'; g.lineWidth = 5; g.stroke(); }
+      if (roadHover && vis(roadHover)) { g.beginPath(); path(roadHover); g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 3.5; g.stroke(); }
+    }
+    for (const r of REFS) {
+      if (!refState[r.id] || !r.pts) continue;
+      const sp = sprite(r, s, dpr);
+      for (const pt of r.pts) {
+        const x = o.x + pt[0] * k, y = o.y - pt[1] * k;
+        if (x < -s || y < -s || x > size.x + s || y > size.y + s) continue;
+        g.drawImage(sp, Math.round(x - h), Math.round(y - h), s, s);
+        hits.push(x, y, pt);
+      }
+    }
+    if (s >= 13) {
+      g.font = '700 9px system-ui, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.lineWidth = 2.5; g.strokeStyle = '#000'; g.fillStyle = '#fff';
+      for (let i = 0; i < hits.length; i += 3) {
+        const n = hits[i + 2][3];
+        if (n > 1) { g.strokeText(n, hits[i] + h - 3, hits[i + 1] - h + 1); g.fillText(n, hits[i] + h - 3, hits[i + 1] - h + 1); }
+      }
+    }
+    if (refState.towns) {
+      const boxes = [];
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      for (const [name0, type, tx, tz, minZoom, tr] of townsSorted) {
+        const name = tr && showTr ? `${name0} (${tr})` : name0;
+        if (zoom < minZoom - 1.25) continue;
+        const x = o.x + tx * k, y = o.y - tz * k;
+        if (x < -120 || y < -20 || x > size.x + 120 || y > size.y + 20) continue;
+        const st = TOWN_STYLE[type];
+        const px = st ? st[0] : 10.5;
+        g.font = `${st ? '' : 'italic '}${st ? st[1] : '500'} ${px}px system-ui, "Segoe UI", sans-serif`;
+        const w = g.measureText(name).width / 2 + 3, hh = px / 2 + 2;
+        if (boxes.some(b => x - w < b[2] && x + w > b[0] && y - hh < b[3] && y + hh > b[1])) continue;
+        boxes.push([x - w, y - hh, x + w, y + hh]);
+        g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.85)'; g.strokeText(name, x, y);
+        g.fillStyle = st ? '#fff' : '#e9dfc8'; g.fillText(name, x, y);
+      }
+    }
+  },
+  hit(cp) {
+    const hits = this._hits || [], rad = Math.max(9, 4 + (this._zoom || 0) * 1.1);
+    let best = null, bd = rad * rad;
+    for (let i = hits.length - 3; i >= 0; i -= 3) {
+      const dx = hits[i] - cp.x, dy = hits[i + 1] - cp.y, d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = hits[i + 2]; }
+    }
+    return best;
+  },
+});
+const refLayer = new RefLayer().addTo(map);
+const refTip = L.tooltip({ direction: 'top', offset: [0, -8], className: 'lbl' });
+let refHover = null;
+const refText = pt => pt[2] + (pt[3] > 1 ? ` ×${pt[3]}` : '');
+map.on('mousemove', e => {
+  const pt = tool ? null : refLayer.hit(e.containerPoint);
+  const rd = (!pt && (!tool || tool === 'route')) ? hitRoad(e.latlng) : null;
+  if (rd !== roadHover) { roadHover = rd; refLayer.draw(); }
+  if (pt !== refHover) {
+    refHover = pt;
+    if (pt) refTip.setLatLng(ll(pt)).setContent(refText(pt)).addTo(map); else refTip.remove();
+  }
+  if (!tool) $('map').style.cursor = (pt || rd) ? 'pointer' : '';
+});
+map.on('click', e => {
+  if (tool) return;
+  const pt = refLayer.hit(e.containerPoint);
+  if (pt) {
+    const p = [pt[0], pt[1]];
+    const box = el('div', { className: 'pop' },
+      el('h3', { textContent: refText(pt) }),
+      el('div', { className: 'meta', textContent: fmt(p) }),
+      el('div', { className: 'row' }, el('button', { textContent: 'Copy coords', onclick: () => copy(fmt(p)) }),
+        el('button', { textContent: '🧭 GPS here', onclick: () => { map.closePopup(); navTo(p); } })));
+    L.popup({ offset: [0, -4] }).setLatLng(ll(p)).setContent(box).openOn(map);
+    return;
+  }
+  const rd = hitRoad(e.latlng), shift = !!(e.originalEvent && e.originalEvent.shiftKey);
+  if (rd) {
+    if (shift) { roadSel.has(rd) ? roadSel.delete(rd) : roadSel.add(rd); }
+    else { const only = roadSel.size === 1 && roadSel.has(rd); roadSel.clear(); if (!only) roadSel.add(rd); }
+  } else if (!shift && roadSel.size) roadSel.clear();
+  else return;
+  updateSelBar(); refLayer.draw();
+});
+function updateSelBar() {
+  const n = roadSel.size;
+  $('selbar').style.display = n ? 'flex' : 'none';
+  if (!n) return;
+  let d = 0; for (const r of roadSel) d += r.len;
+  $('selText').textContent = `${n} road section${n === 1 ? '' : 's'} · ${fmtDist(d)} · Shift+click adds more`;
+}
+function applyRefs() {
+  refState.gas ? gasGroup.addTo(map) : gasGroup.remove();
+  refLayer.draw();
+  ls.set('fm:ref', refState);
+}
+function buildRefUI() {
+  const box = $('refs'); box.replaceChildren();
+  for (const r of REFS) {
+    const cb = el('input', { type: 'checkbox', checked: !!refState[r.id] });
+    cb.onchange = () => { refState[r.id] = cb.checked; applyRefs(); };
+    box.append(el('label', {}, cb, `${r.icon} ${r.name}`, el('span', { className: 'n', textContent: r.n })));
+  }
+}
+
+// ---------- state ----------
+const feats = new Map();      // id -> feature (data + $: { vis, fac, owner, saved })
+const layers = new Map();     // id -> leaflet layer
+let hidden = new Set(ls.get('fm:hidden', []));
+let visFilter = Object.assign({ mine: true, faction: true, others: true }, ls.get('fm:visf', {}));
+let labelsOn = ls.get('fm:labels', true);
+let tool = null;              // null | 'place' | 'poly' | 'measure' | 'route' | 'nav'
+let shape = 'auto';
+let draft = null, draftLayer = null, editingId = null;
+let polyPts = [];
+let measurePts = [], measureLayer = null;
+let sb = null, channel = null;
+let me = null;                // { id, username }
+let server = null, myRole = null, servers = [];
+const factions = new Map(), profiles = new Map(), notes = new Map();
+let fmembers = [], smembers = [], invites = [], outInvites = [];
+let myFac = null, myFacRole = null;
+const uname = id => profiles.get(id) || (id ? 'player' : 'unknown');
+const isAdmin = () => myRole === 'owner' || myRole === 'admin';
+function canEdit(f) {
+  const m = f.$ || {};
+  if (!ONLINE || !m.saved) return true;
+  if (m.owner === me?.id) return true;
+  if (m.vis !== 'private' && m.fac && m.fac === myFac) return true;
+  return m.vis === 'server' && isAdmin();
+}
+function shown(f) {
+  const m = f.$ || {};
+  if (hidden.has(catOf(f).id)) return false;
+  if (m.vis === 'private') return visFilter.mine;
+  if (!ONLINE || (m.fac && m.fac === myFac) || m.owner === me?.id) return visFilter.faction;
+  return visFilter.others;
+}
+function facLabel(fac) { return fac ? `${fac.tag ? '[' + fac.tag + '] ' : ''}${fac.name}` : ''; }
+function facEl(fac) {
+  if (!fac) return el('span', { className: 'dim', textContent: 'none' });
+  return el('span', {}, fac.flag && FLAG[fac.flag] ? el('span', { className: 'miniflag', innerHTML: flagSvg(fac.flag) }) : '', facLabel(fac));
+}
+
+// ---------- rendering ----------
+function pinIcon(f) {
+  const c = colorOf(f);
+  return L.divIcon({
+    className: '', iconSize: [22, 22], iconAnchor: [11, 11],
+    html: `<div class="pin" style="background:radial-gradient(circle at 35% 30%, ${mix(c, '#ffffff', .45)}, ${c} 55%, ${mix(c, '#000000', .25)});--g:${c}aa">${catOf(f).icon}</div>`,
+  });
+}
+const ovDefs = (() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', 0); svg.setAttribute('height', 0); svg.style.position = 'absolute';
+  svg.innerHTML = `<defs><filter id="ovGlow" filterUnits="userSpaceOnUse" x="-30000" y="-30000" width="60000" height="60000">
+    <feGaussianBlur stdDeviation="4"/></filter></defs>`;
+  document.body.append(svg);
+  return { defs: svg.firstChild, made: new Set(), NS };
+})();
+function stripePattern(c) {
+  const id = 'ovs' + c.slice(1);
+  if (!ovDefs.made.has(id)) {
+    ovDefs.made.add(id);
+    const pat = document.createElementNS(ovDefs.NS, 'pattern');
+    pat.setAttribute('id', id); pat.setAttribute('patternUnits', 'userSpaceOnUse');
+    pat.setAttribute('width', 10); pat.setAttribute('height', 10); pat.setAttribute('patternTransform', 'rotate(45)');
+    pat.innerHTML = `<rect width="10" height="10" fill="${c}" fill-opacity=".3"/><rect width="4" height="10" fill="${c}"/>`;
+    ovDefs.defs.append(pat);
+  }
+  return `url(#${id})`;
+}
+// label: name pill, flag underneath, then the owning faction if it isn't yours
+function labelHtml(f, c, pin) {
+  const fac = f.$?.fac && factions.get(f.$.fac);
+  const sub = fac && fac.id !== myFac ? `<em>${esc(facLabel(fac))}</em>` : '';
+  const title = pin ? (f.name || '') : `${catOf(f).icon} ${featTitle(f)}`;
+  return `<div class="zl${pin ? ' pinl' : ''}">${title ? `<span style="--c:${c}">${esc(title)}</span>` : ''}${f.flag && FLAG[f.flag] ? `<div class="zf">${flagSvg(f.flag)}</div>` : ''}${sub}</div>`;
+}
+function shapeOf(f, opts) {
+  return f.kind === 'circle' ? L.circle(ll(f.pos), { ...opts, radius: f.radius || 100 }) : L.polygon(f.points.map(ll), opts);
+}
+function buildZone(f, isDraft) {
+  const c = colorOf(f), op = opOf(f), fill = fillOf(f);
+  const glow = shapeOf(f, { color: c, weight: 9, opacity: .7, fill: false, interactive: false,
+    className: 'ov-glow' + ((f.cat === 'danger' || f.cat === 'raid') && !isDraft ? ' ov-pulse' : '') });
+  const casing = shapeOf(f, { color: '#000', weight: 5, opacity: .55, fill: false, interactive: false });
+  const main = shapeOf(f, { color: c, weight: 2.6, opacity: 1, fill: fill !== 'none', fillColor: c, fillOpacity: op,
+    dashArray: isDraft ? '8 6' : (f.cat === 'compound' ? '10 4' : null), interactive: !isDraft, className: 'ov-main' });
+  const core = shapeOf(f, { color: mix(c, '#ffffff', .6), weight: 1, opacity: .9, fill: false, interactive: false, dashArray: isDraft ? '8 6' : null });
+  if (fill === 'stripes') main.on('add', () => main._path && main._path.setAttribute('fill', stripePattern(c)));
+  const g = L.featureGroup([glow, casing, main, core]);
+  if (!isDraft) {
+    main.on('mouseover', () => { glow.setStyle({ weight: 14, opacity: 1 }); if (fill !== 'none') main.setStyle({ fillOpacity: Math.min(1, op + .12) }); });
+    main.on('mouseout', () => { glow.setStyle({ weight: 9, opacity: .7 }); if (fill !== 'none') main.setStyle({ fillOpacity: op }); });
+  }
+  if (f.name || f.flag || f.cat === 'compound' || f.$?.fac !== myFac) g.bindTooltip(labelHtml(f, c), { permanent: labelsOn, direction: 'center', className: 'zlbl' });
+  return g;
+}
+function buildLayer(f, isDraft) {
+  let layer;
+  if (f.kind === 'marker') {
+    layer = L.marker(ll(f.pos), { icon: pinIcon(f), interactive: !isDraft, opacity: Math.max(.15, opOf(f)) });
+    const fac = f.$?.fac && factions.get(f.$.fac);
+    if (f.name || f.flag || (fac && fac.id !== myFac)) layer.bindTooltip(labelHtml(f, colorOf(f), true), { permanent: labelsOn, direction: 'top', offset: [0, -11], className: 'zlbl' });
+  }
+  else if (f.kind === 'route') layer = routeLayer(f);
+  else layer = buildZone(f, isDraft);
+  if (!isDraft) layer.on('click', e => { L.DomEvent.stop(e); if (tool) { map.fire('click', { latlng: e.latlng, originalEvent: e.originalEvent }); return; } openInfo(f.id); });
+  return layer;
+}
+function routeLayer(f) {
+  const c = colorOf(f), pts = f.points, lls = pts.map(ll), op = Math.max(.15, opOf(f));
+  const glow = L.polyline(lls, { color: c, weight: 10, opacity: .6 * op, className: 'ov-glow', interactive: false });
+  const line = L.polyline(lls, { color: c, weight: 3.8, opacity: op });
+  if (f.name) line.bindTooltip(labelHtml(f, c), { permanent: labelsOn, direction: 'center', className: 'zlbl' });
+  const g = L.featureGroup([
+    glow,
+    L.polyline(lls, { color: '#000', weight: 7, opacity: .5 * op }), line,
+    L.polyline(lls, { color: mix(c, '#ffffff', .6), weight: 1.2, opacity: .9 * op, interactive: false }),
+    L.circleMarker(lls[0], { radius: 5.5, color: '#000', weight: 2, fillColor: '#56e07a', fillOpacity: 1 }),
+    L.circleMarker(lls[lls.length - 1], { radius: 5.5, color: '#000', weight: 2, fillColor: '#ff5b52', fillOpacity: 1 }),
+  ]);
+  line.on('mouseover', () => glow.setStyle({ weight: 15, opacity: op }));
+  line.on('mouseout', () => glow.setStyle({ weight: 10, opacity: .6 * op }));
+  pts.forEach((q, i) => {
+    if (!q[2]) return;
+    g.addLayer(L.circleMarker(lls[i], { radius: 4.5, color: '#000', weight: 1.5, fillColor: '#fff', fillOpacity: 1 })
+      .bindTooltip(q[2], { permanent: labelsOn, direction: 'top', offset: [0, -5], className: 'lbl' }));
+  });
+  return g;
+}
+function renderFeature(id) {
+  layers.get(id)?.remove(); layers.delete(id);
+  const f = feats.get(id);
+  if (!f || !shown(f) || id === editingId) return;
+  const layer = buildLayer(f, false);
+  layers.set(id, layer); layer.addTo(map);
+}
+function renderAll() { for (const id of new Set([...layers.keys(), ...feats.keys()])) renderFeature(id); refreshSide(); }
+function renderDraft() {
+  draftLayer?.remove(); draftLayer = null;
+  if (draft && draft.kind === 'route') { renderRouteEdit(); return; }
+  clearRouteEdit();
+  if (draft && (draft.pos || (draft.points && draft.points.length >= 3))) draftLayer = buildLayer(draft, true).addTo(map);
+}
+
+// ---------- info panel (click anything you drew) ----------
+let infoId = null;
+function openInfo(id) {
+  if (!feats.has(id)) return;
+  closeForm(true);
+  infoId = id; renderInfo();
+  $('info').classList.add('show'); $('scroll').scrollTop = 0;
+  document.body.classList.add('open');
+}
+function closeInfo() { infoId = null; $('info').classList.remove('show'); $('info').replaceChildren(); }
+function compoundsOf(id) { return [...feats.values()].filter(c => c.cat === 'compound' && c.parent === id).sort((a, b) => (a.num || 0) - (b.num || 0)); }
+function fieldText(fd, v) {
+  if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
+  if (fd.t === 'checks') return v.join(', ');
+  if (fd.t === 'range') return v + (fd.unit || '');
+  if (fd.t === 'datetime') { const d = new Date(v); return isNaN(d) ? String(v) : d.toLocaleString(); }
+  return String(v);
+}
+function renderInfo() {
+  const box = $('info'); box.replaceChildren();
+  const f = feats.get(infoId); if (!f) { closeInfo(); return; }
+  const m = f.$ || {}, c = colorOf(f), cat = catOf(f), ctr = centerOf(f);
+  box.append(el('div', { className: 'row', style: 'margin-top:8px' }, el('button', { className: 'linkbtn', textContent: '← Back', onclick: closeInfo })));
+  const head = el('div', { className: 'ihead', style: `--c:${c}` });
+  if (f.flag && FLAG[f.flag]) head.append(el('div', { className: 'iflag', innerHTML: flagSvg(f.flag), title: FLAG[f.flag].name }));
+  head.append(el('div', {}, el('h3', { textContent: `${cat.icon} ${featTitle(f)}` }),
+    el('div', { className: 'meta', textContent: `${cat.name}${ONLINE ? ' · ' + VIS[m.vis || 'faction'] : ''}${f.flag && FLAG[f.flag] ? ' · ' + FLAG[f.flag].name : ''}` })));
+  box.append(head);
+  const facts = [['Position', fmt(ctr)]];
+  if (isZone(f)) facts.push(['Area', fmtArea(areaOf(f))], ['Edge length', fmtDist(perimOf(f))]);
+  if (f.kind === 'circle') facts.push(['Radius', f.radius + ' m']);
+  if (f.kind === 'route') facts.push(['Length', fmtDist(routeLen(f.points))]);
+  const fac = m.fac && factions.get(m.fac);
+  if (ONLINE && fac) facts.push(['Faction', facEl(fac)]);
+  if (f.parent && feats.get(f.parent)) {
+    const p = feats.get(f.parent);
+    facts.push(['Part of', el('button', { className: 'linkbtn', textContent: featTitle(p), onclick: () => focusFeature(p.id) })]);
+  }
+  for (const fd of FIELDS[f.cat] || []) { const t = fieldText(fd, (f.d || {})[fd.k]); if (t) facts.push([fd.l, t]); }
+  if (ONLINE) facts.push(['Added by', uname(m.owner)]);
+  facts.push(['Updated', `${ago(f.updated || 0)}${f.author ? ' by ' + f.author : ''}`]);
+  const dl = el('dl', { className: 'facts' });
+  for (const [k, v] of facts) dl.append(el('dt', { textContent: k }), el('dd', {}, v));
+  box.append(dl);
+  if (f.notes) box.append(el('div', { className: 'desc', textContent: f.notes }));
+  const row = el('div', { className: 'row wrap' });
+  if (canEdit(f)) row.append(el('button', { textContent: '✏️ Edit', onclick: () => startEdit(f.id) }));
+  row.append(el('button', { textContent: '🧭 GPS here', onclick: () => navTo(ctr) }),
+    el('button', { textContent: '🎯 Zoom', onclick: () => zoomTo(f) }),
+    el('button', { textContent: 'Copy coords', onclick: () => copy(fmt(ctr)) }));
+  if (canEdit(f)) row.append(el('button', { className: 'danger', textContent: 'Delete', onclick: () => del(f.id) }));
+  box.append(row);
+
+  if (['base', 'territory', 'ally', 'enemy'].includes(f.cat)) {
+    const cs = compoundsOf(f.id);
+    box.append(el('h2', { textContent: `Compounds (${cs.length})` }));
+    for (const cp of cs) box.append(el('div', { className: 'item', onclick: () => focusFeature(cp.id) },
+      el('span', { textContent: '🏚️' }), el('span', { className: 'nm', textContent: featTitle(cp) }),
+      el('span', { className: 'sub', textContent: fieldText(FIELDS.compound[0], (cp.d || {}).state) || '' })));
+    if (!cs.length) box.append(el('div', { className: 'empty', textContent: 'Break this base into numbered compounds, each with its own notes.' }));
+    box.append(el('button', { textContent: '➕ Add compound', onclick: () => startCompound(f.id) }));
+  }
+
+  if (!ONLINE) return;
+  const list = [...notes.values()].filter(n => n.feature_id === f.id).sort((a, b) => a.created_at < b.created_at ? -1 : 1);
+  box.append(el('h2', { textContent: `Notes (${list.length})` }));
+  if (!m.saved) { box.append(el('div', { className: 'empty', textContent: 'Save this first, then you can add notes.' })); return; }
+  if (!list.length) box.append(el('div', { className: 'empty', textContent: 'No notes yet. Private notes are only for you, crew notes are for your faction, server notes are for everyone on the server.' }));
+  for (const n of list) {
+    const nh = el('div', { className: 'nh' }, el('b', { textContent: uname(n.author) }), el('span', { textContent: NVIS[n.vis] }), el('span', { textContent: ago(n.created_at) }));
+    if (n.author === me?.id || (n.vis === 'server' && isAdmin())) nh.append(el('button', { className: 'linkbtn', style: 'margin-left:auto', textContent: 'delete', onclick: () => delNote(n.id) }));
+    box.append(el('div', { className: 'note ' + n.vis }, nh, el('div', { className: 'nb', textContent: n.body })));
+  }
+  const ta = el('textarea', { rows: 3, maxLength: 2000, placeholder: 'Write a note…' });
+  let nvis = ls.get('fm:nvis', myFac ? 'crew' : 'private');
+  if (nvis === 'crew' && !myFac) nvis = 'private';
+  const seg = el('div', { className: 'seg', style: 'margin-top:6px' });
+  for (const v of ['private', 'crew', 'server']) {
+    const b = el('button', { type: 'button', textContent: NVIS[v], disabled: v === 'crew' && !myFac, title: v === 'crew' && !myFac ? 'Join a faction to write crew notes' : '' });
+    b.onclick = () => { nvis = v; ls.set('fm:nvis', v); for (const x of seg.children) x.classList.toggle('on', x === b); };
+    if (v === nvis) b.classList.add('on');
+    seg.append(b);
+  }
+  const post = el('button', { className: 'primary', textContent: 'Post note', onclick: async () => {
+    const body = ta.value.trim(); if (!body) return;
+    post.disabled = true;
+    const { data, error } = await sb.from('notes').insert({ feature_id: f.id, server_id: server.id, faction_id: nvis === 'crew' ? myFac : null, author: me.id, vis: nvis, body }).select().single();
+    post.disabled = false;
+    if (error) return toast('Note not saved: ' + error.message);
+    notes.set(data.id, data); ta.value = ''; renderInfo();
+  } });
+  box.append(el('label', { textContent: `Add a note as ${me?.username || ''}` }), ta, seg, post);
+}
+async function delNote(id) {
+  if (!confirm('Delete this note?')) return;
+  const { error } = await sb.from('notes').delete().eq('id', id);
+  if (error) return toast('Could not delete: ' + error.message);
+  notes.delete(id); renderInfo();
+}
+function zoomTo(f) {
+  document.body.classList.remove('open');
+  const layer = layers.get(f.id);
+  if (f.kind === 'marker') map.setView(ll(f.pos), Math.max(map.getZoom(), 5));
+  else if (layer) map.fitBounds(layer.getBounds().pad(0.5), { maxZoom: 6 });
+}
+
+// ---------- sidebar ----------
+function buildStatic() {
+  $('title').textContent = CFG.title || 'Faction Map';
+  document.title = CFG.title || 'Faction Map';
+  for (const c of CATS) {
+    $('palette').append(el('button', { textContent: `${c.icon} ${c.name}`, title: `Add: ${c.name}`, onclick: () => startAdd(c.id) }));
+    if (c.id !== 'route') $('fCat').append(el('option', { value: c.id, textContent: `${c.icon} ${c.name}` }));
+  }
+  for (const b of $('shapeSeg').children) b.onclick = () => setShape(b.dataset.shape);
+  setShape(ls.get('fm:shape', 'auto'));
+  for (const m of MAPS) {
+    $('mapSel').append(el('option', { value: m.id, textContent: `${mapTitle(m)}${m.official ? '' : ' (community)'}` }));
+    $('spMap').append(el('option', { value: m.id, textContent: mapTitle(m) }));
+  }
+  $('mapSel').value = MAPDEF.id; $('spMap').value = MAPDEF.id;
+  $('mapNote').textContent = ROADS.length ? '' : 'Road data (GPS) is only available on Nasdara for now; GPS draws a straight line here.';
+  for (const b of $('tabbar').children) b.onclick = () => showTab(b.dataset.tab);
+}
+function showTab(t) {
+  closeForm(true); closeInfo();
+  for (const b of $('tabbar').children) b.classList.toggle('on', b.dataset.tab === t);
+  for (const p of document.querySelectorAll('.pane')) p.classList.toggle('show', p.id === 'pane' + t[0].toUpperCase() + t.slice(1));
+  if (t === 'faction') renderFaction();
+  if (t === 'server') renderServer();
+}
+function setShape(s) {
+  shape = s; ls.set('fm:shape', s);
+  for (const b of $('shapeSeg').children) b.classList.toggle('on', b.dataset.shape === s);
+}
+function refreshSide() {
+  const counts = {};
+  for (const f of feats.values()) counts[catOf(f).id] = (counts[catOf(f).id] || 0) + 1;
+  const fl = $('filters'); fl.replaceChildren();
+  for (const c of CATS) {
+    const cb = el('input', { type: 'checkbox', checked: !hidden.has(c.id) });
+    cb.onchange = () => { cb.checked ? hidden.delete(c.id) : hidden.add(c.id); ls.set('fm:hidden', [...hidden]); renderAll(); };
+    fl.append(el('label', {}, cb, `${c.icon} ${c.name}`, el('span', { className: 'n', textContent: counts[c.id] || '' })));
+  }
+  const vf = $('visFilters'); vf.replaceChildren();
+  for (const [k, t] of [['mine', '🔒 My private'], ['faction', '👥 My faction'], ['others', '🌐 Other factions']]) {
+    if (!ONLINE && k !== 'faction') continue;
+    const cb = el('input', { type: 'checkbox', checked: !!visFilter[k] });
+    cb.onchange = () => { visFilter[k] = cb.checked; ls.set('fm:visf', visFilter); renderAll(); };
+    vf.append(el('label', {}, cb, t));
+  }
+  refreshList();
+}
+function refreshList() {
+  const list = $('list'); list.replaceChildren();
+  const items = [...feats.values()].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  if (!items.length) { list.append(el('div', { className: 'empty', textContent: 'Nothing marked yet. Pick a type above, then click the map.' })); return; }
+  for (const f of items.slice(0, 300)) {
+    list.append(el('div', { className: 'item', onclick: () => focusFeature(f.id) },
+      el('span', { textContent: catOf(f).icon }),
+      el('span', { className: 'nm', textContent: featTitle(f) }),
+      el('span', { className: 'sub', textContent: fmt(centerOf(f)) })));
+  }
+  if ($('results').classList.contains('show')) renderResults();
+}
+let resultActs = [], resultSel = 0;
+function renderResults() {
+  const q = $('search').value.trim().toLowerCase();
+  const box = $('results'); box.replaceChildren(); resultActs = []; resultSel = 0;
+  $('searchClear').style.display = q ? 'block' : 'none';
+  if (!q) { box.classList.remove('show'); return; }
+  const row = (icon, name, sub, act) => {
+    const i = resultActs.push(act) - 1;
+    box.append(el('div', { className: 'item' + (i === 0 ? ' sel' : ''), onclick: () => runResult(i) },
+      el('span', { textContent: icon }), el('span', { className: 'nm', textContent: name }),
+      el('span', { className: 'sub', textContent: sub })));
+  };
+  const grp = t => box.append(el('div', { className: 'grp', textContent: t }));
+  const m = q.match(/^(\d{1,5}(?:\.\d+)?)[\s,\/]+(\d{1,5}(?:\.\d+)?)$/);
+  if (m) {
+    const p = [clampW(+m[1]), clampW(+m[2])];
+    row('🎯', `Go to ${fmt(p)}`, '', () => goTo(p));
+  } else {
+    const fm = [...feats.values()].filter(f => featTitle(f).toLowerCase().includes(q) || (f.notes || '').toLowerCase().includes(q) || catOf(f).name.toLowerCase().includes(q))
+      .sort((a, b) => (b.updated || 0) - (a.updated || 0)).slice(0, 8);
+    if (fm.length) grp('Markers');
+    for (const f of fm) row(catOf(f).icon, featTitle(f), fmt(centerOf(f)), () => focusFeature(f.id));
+    const tw = REF.towns.filter(t => t[0].toLowerCase().includes(q) || (t[5] || '').toLowerCase().includes(q))
+      .sort((a, b) => (a[0].toLowerCase().startsWith(q) ? 0 : 1) - (b[0].toLowerCase().startsWith(q) ? 0 : 1) || a[4] - b[4]).slice(0, 8);
+    if (tw.length) grp('Places');
+    for (const t of tw) row('🏘️', townName(t), fmt([t[2], t[3]]), () => goTo([t[2], t[3]], townName(t)));
+    const lay = REFS.filter(r => r.pts && r.name.toLowerCase().includes(q)).slice(0, 5);
+    if (lay.length) grp('Map info layers');
+    for (const r of lay) row(r.icon, r.name, refState[r.id] ? 'shown' : `show ${r.n}`, () => { refState[r.id] = true; buildRefUI(); applyRefs(); toast(`Showing ${r.name}`); });
+    const pts = [];
+    for (const r of REFS) { if (!r.pts) continue; for (const pt of r.pts) { if (pt[2].toLowerCase().includes(q)) { pts.push([r, pt]); if (pts.length >= 8) break; } } if (pts.length >= 8) break; }
+    if (pts.length) grp('Map info');
+    for (const [r, pt] of pts) row(r.icon, pt[2] + (pt[3] > 1 ? ` ×${pt[3]}` : ''), fmt(pt), () => { if (!refState[r.id]) { refState[r.id] = true; buildRefUI(); applyRefs(); } goTo([pt[0], pt[1]], pt[2]); });
+  }
+  if (!resultActs.length) box.append(el('div', { className: 'empty', textContent: 'Nothing matches.', style: 'padding:8px' }));
+  box.classList.add('show');
+}
+function runResult(i) {
+  const act = resultActs[i]; if (!act) return;
+  $('results').classList.remove('show'); $('search').blur();
+  act();
+}
+function moveSel(d) {
+  const rows = $('results').querySelectorAll('.item'); if (!rows.length) return;
+  rows[resultSel]?.classList.remove('sel');
+  resultSel = (resultSel + d + rows.length) % rows.length;
+  rows[resultSel].classList.add('sel'); rows[resultSel].scrollIntoView({ block: 'nearest' });
+}
+function focusFeature(id) {
+  const f = feats.get(id); if (!f) return;
+  if (!shown(f)) { hidden.delete(catOf(f).id); ls.set('fm:hidden', [...hidden]); visFilter = { mine: true, faction: true, others: true }; ls.set('fm:visf', visFilter); renderAll(); }
+  zoomTo(f);
+  openInfo(id);
+}
+let goPin = null;
+function goTo(p, label) {
+  goPin?.remove();
+  document.body.classList.remove('open');
+  map.setView(ll(p), Math.max(map.getZoom(), 5));
+  goPin = L.circleMarker(ll(p), { radius: 9, color: '#fff', weight: 2, fillColor: '#e0a13a', fillOpacity: 1 })
+    .bindTooltip(label ? `${label} · ${fmt(p)}` : fmt(p), { permanent: true, direction: 'top', className: 'lbl', offset: [0, -8] }).addTo(map);
+  goPin.on('click', () => { goPin.remove(); goPin = null; });
+}
+
+// ---------- tools / drawing ----------
+function setHint(text, showDone) {
+  $('hint').style.display = text ? 'block' : 'none';
+  $('hintText').textContent = text || '';
+  $('hintDone').style.display = showDone ? '' : 'none';
+  $('map').style.cursor = text ? 'crosshair' : '';
+}
+function cancelTool() {
+  const tool0 = tool;
+  tool = null; polyPts = []; drawPolyPreview();
+  measurePts = []; measureLayer?.remove(); measureLayer = null;
+  $('tMeasure').classList.remove('on'); $('tNav').classList.remove('on');
+  if (!$('form').classList.contains('show')) { draft = null; editingId = null; }
+  renderDraft(); setHint('');
+  if (tool0 === 'route') closeForm(true);
+}
+function defaultVis(catId) { return !ONLINE ? 'faction' : CAT[catId]?.vis || (myFac ? 'faction' : 'private'); }
+function newDraft(catId, kind) {
+  const d = { id: crypto.randomUUID(), kind, cat: catId, name: '', notes: '', $: { vis: defaultVis(catId), fac: myFac, owner: me?.id } };
+  const fac = myFac && factions.get(myFac);
+  if (fac && fac.flag && ['base', 'territory', 'compound'].includes(catId) && FLAG[fac.flag]) { d.flag = fac.flag; d.color = fac.color || FLAG[fac.flag].c[0]; }
+  return d;
+}
+function startAdd(catId, parentId) {
+  if (catId === 'route') return startRoute();
+  closeForm(true); closeInfo(); cancelTool();
+  document.body.classList.remove('open');
+  const kind = shape === 'auto' || CAT[catId].shape === 'route' ? CAT[catId].shape : shape;
+  draft = newDraft(catId, kind);
+  if (parentId) draft.parent = parentId;
+  if (kind === 'polygon') { tool = 'poly'; draft.points = []; setHint(`${CAT[catId].name}: click to outline the area (3+ points)`, true); }
+  else { tool = 'place'; if (kind === 'circle') draft.radius = CAT[catId].radius || 200; setHint(`${CAT[catId].name}: click the map to place it`); }
+}
+function startCompound(parentId) {
+  const p = feats.get(parentId);
+  startAdd('compound', parentId);
+  if (p) { const fl = p.flag; if (fl) { draft.flag = fl; draft.color = p.color || FLAG[fl]?.c[0]; } draft.$.vis = p.$?.vis === 'server' ? 'faction' : (p.$?.vis || draft.$.vis); }
+  setHint(`Compound #${nextCompoundNum(parentId)}: outline it on the map (3+ points)`, true);
+}
+function nextCompoundNum(parentId) { return 1 + Math.max(0, ...compoundsOf(parentId).map(c => c.num || 0)); }
+let polyPreview = null;
+function drawPolyPreview() {
+  polyPreview?.remove(); polyPreview = null;
+  if (tool === 'poly' && polyPts.length) {
+    polyPreview = L.featureGroup([
+      L.polyline(polyPts.map(ll), { color: '#fff', weight: 2, dashArray: '6 5', interactive: false }),
+      ...polyPts.map(p => L.circleMarker(ll(p), { radius: 4, color: '#fff', fillOpacity: 1, interactive: false })),
+    ]).addTo(map);
+  }
+}
+function finishPoly() {
+  if (polyPts.length < 3) { toast('Need at least 3 points'); return; }
+  draft.points = polyPts.slice(); polyPts = []; tool = null;
+  drawPolyPreview(); setHint(''); renderDraft(); openForm();
+}
+function drawMeasure() {
+  measureLayer?.remove(); measureLayer = null;
+  if (!measurePts.length) return;
+  const txt = fmtDist(routeLen(measurePts));
+  measureLayer = L.featureGroup([
+    L.polyline(measurePts.map(ll), { color: '#fff', weight: 3, interactive: false }),
+    L.circleMarker(ll(measurePts.at(-1)), { radius: 4, color: '#fff', fillOpacity: 1, interactive: false })
+      .bindTooltip(txt, { permanent: true, direction: 'right', className: 'lbl', offset: [8, 0] }),
+  ]).addTo(map);
+  setHint(`Measure: ${txt} — click to add points`, true);
+}
+
+map.on('click', e => {
+  const p = [clampW(Math.round(e.latlng.lng)), clampW(Math.round(e.latlng.lat))];
+  if (tool === 'place') {
+    draft.pos = p; tool = null; setHint(''); renderDraft(); openForm();
+  } else if (tool === 'poly') {
+    polyPts.push(p); drawPolyPreview();
+  } else if (tool === 'measure') {
+    measurePts.push(p); drawMeasure();
+  } else if (tool === 'nav') {
+    navClick(p);
+  } else if (tool === 'route') {
+    if (e.originalEvent && e.originalEvent.shiftKey) {
+      const rd = hitRoad(e.latlng);
+      if (!rd) return toast('No road under the cursor. Click closer to a highlighted road.');
+      const pts = draft.points, last = pts[pts.length - 1];
+      const from = last ? nkey(last[0], last[1]) : null;
+      const path = from !== null && rnodes.has(from) && from !== rd.a && from !== rd.b ? roadPath(from, rd) : null;
+      if (path) for (const r of path) appendRoad(pts, r);
+      appendRoad(pts, rd); wpSel = -1;
+      if (path && path.length) toast(`Followed ${path.length + 1} road sections`);
+    } else { draft.points.push(p); wpSel = draft.points.length - 1; }
+    renderDraft(); updateRouteInfo();
+  }
+});
+map.on('dblclick', () => { if (tool === 'poly') { polyPts.pop(); finishPoly(); } });
+map.on('contextmenu', e => {
+  if (tool) return;
+  const p = xz(e.latlng);
+  const box = el('div', { className: 'pop' },
+    el('h3', { textContent: fmt(p) }),
+    el('div', { className: 'row' },
+      el('button', { textContent: 'Copy coords', onclick: () => copy(fmt(p)) }),
+      el('button', { textContent: '🧭 GPS here', onclick: () => { map.closePopup(); navTo(p); } }),
+      el('button', { textContent: 'Add pin here', onclick: () => {
+        map.closePopup(); closeForm(true); cancelTool();
+        draft = newDraft('poi', 'marker'); draft.pos = [clampW(p[0]), clampW(p[1])];
+        renderDraft(); openForm();
+      } })));
+  L.popup().setLatLng(e.latlng).setContent(box).openOn(map);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('auth').classList.contains('show')) { $('auth').classList.remove('show'); return; }
+  if (e.key === 'Escape' && $('srvpick').classList.contains('show')) { $('srvpick').classList.remove('show'); return; }
+  if (e.key === 'Escape') { if (tool) cancelTool(); else if ($('form').classList.contains('show')) closeForm(); else if (infoId) closeInfo(); }
+  if (e.key === 'Enter' && tool === 'poly') finishPoly();
+});
+$('hintCancel').onclick = () => { const wasForm = $('form').classList.contains('show'); cancelTool(); if (wasForm) renderDraft(); };
+$('hintDone').onclick = () => { if (tool === 'poly') finishPoly(); else if (tool === 'route') $('fSave').click(); else cancelTool(); };
+$('tMeasure').onclick = () => {
+  if (tool === 'measure') return cancelTool();
+  closeForm(true); cancelTool(); tool = 'measure'; $('tMeasure').classList.add('on'); setHint('Measure: click points on the map', true);
+};
+$('tGrid').onclick = () => { const on = !map.hasLayer(grid); on ? grid.addTo(map) : grid.remove(); $('tGrid').classList.toggle('on', on); ls.set('fm:grid', on); };
+$('tLabels').onclick = () => { labelsOn = !labelsOn; ls.set('fm:labels', labelsOn); $('tLabels').classList.toggle('on', labelsOn); renderAll(); };
+$('menu').onclick = () => document.body.classList.toggle('open');
+map.on('click', () => { if (!tool) document.body.classList.remove('open'); });
+
+// ---------- GPS: road navigation between two points ----------
+function hpush(h, it) { h.push(it); let i = h.length - 1; while (i) { const p = (i - 1) >> 1; if (h[p][0] <= h[i][0]) break; [h[p], h[i]] = [h[i], h[p]]; i = p; } }
+function hpop(h) {
+  const top = h[0], last = h.pop();
+  if (h.length) { h[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < h.length && h[l][0] < h[m][0]) m = l; if (r < h.length && h[r][0] < h[m][0]) m = r; if (m === i) break; [h[m], h[i]] = [h[i], h[m]]; i = m; } }
+  return top;
+}
+let graph = null;
+const DIRT_COST = 1.3, GAP_COST = 1.6;
+// segment search: nearest point on any road within maxD of (x, z); skip = road to ignore
+function nearestSeg(x, z, maxD, skip) {
+  let best = null, bd = maxD;
+  const c = Math.ceil(maxD / RCELL), cx = Math.floor(x / RCELL), cz = Math.floor(z / RCELL), seen = new Set();
+  for (let i = -c; i <= c; i++) for (let j = -c; j <= c; j++) for (const r of rgrid.get((cx + i) * 4096 + cz + j) || []) {
+    if (r === skip || seen.has(r)) continue; seen.add(r);
+    const f = r.f;
+    for (let k = 2; k < f.length; k += 2) {
+      const ax = f[k - 2], az = f[k - 1], dx = f[k] - ax, dz = f[k + 1] - az, l2 = dx * dx + dz * dz;
+      const u = l2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)) : 0;
+      const px = ax + u * dx, pz = az + u * dz, d = Math.hypot(x - px, z - pz);
+      if (d < bd) { bd = d; best = { r, k, u, px, pz, d, sl: Math.sqrt(l2) }; }
+    }
+  }
+  return best;
+}
+// graph of every road vertex. Roads in the data often stop just short of the road they join (T-junctions),
+// so each dead end is joined to the nearest point on another road (splitting that segment), or failing that
+// to the nearest vertex within 80 m (bridges, big junctions).
+function buildGraph() {
+  if (graph) return graph;
+  const nodes = new Map();
+  const node = (x, z) => { const k = nkey(Math.round(x), Math.round(z)); let n = nodes.get(k); if (!n) nodes.set(k, n = { x: Math.round(x), z: Math.round(z), e: [] }); return n; };
+  const link = (A, B, len, t, gap) => {
+    if (A === B || A.e.some(e => e.to === B)) return;
+    const w = len * (gap ? GAP_COST : t ? 1 : DIRT_COST);
+    A.e.push({ to: B, w, t, len, gap }); B.e.push({ to: A, w, t, len, gap });
+  };
+  const deg = new Map();
+  for (const r of ROADS) for (const k of [r.a, r.b]) deg.set(k, (deg.get(k) || 0) + 1);
+  const splits = new Map(), joins = [], seenX = new Set();
+  for (const r of ROADS) for (const j of [0, r.f.length - 2]) {
+    const x = r.f[j], z = r.f[j + 1];
+    if (deg.get(nkey(x, z)) !== 1) continue;
+    const s = nearestSeg(x, z, 40, r);
+    if (!s) { joins.push([x, z, null]); continue; }
+    const key = s.r; let arr = splits.get(key); if (!arr) splits.set(key, arr = []);
+    arr.push(s); joins.push([x, z, s]);
+  }
+  // roads that cross mid-segment (X junctions): split both at the crossing point
+  const addSplit = (r, k, u, px, pz) => { let arr = splits.get(r); if (!arr) splits.set(r, arr = []); arr.push({ k, u, px, pz }); };
+  const idx = new Map(ROADS.map((r, i) => [r, i]));
+  for (const [, set] of rgrid) {
+    const rs = [...set];
+    for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+      let r1 = rs[i], r2 = rs[j]; if (idx.get(r1) > idx.get(r2)) [r1, r2] = [r2, r1];
+      if (r1.x1 < r2.x0 || r2.x1 < r1.x0 || r1.z1 < r2.z0 || r2.z1 < r1.z0) continue;
+      const f = r1.f, g = r2.f;
+      for (let a = 2; a < f.length; a += 2) {
+        const ax = f[a - 2], az = f[a - 1], adx = f[a] - ax, adz = f[a + 1] - az;
+        for (let b = 2; b < g.length; b += 2) {
+          const bx = g[b - 2], bz = g[b - 1], bdx = g[b] - bx, bdz = g[b + 1] - bz;
+          const den = adx * bdz - adz * bdx; if (!den) continue;
+          const t = ((bx - ax) * bdz - (bz - az) * bdx) / den, u = ((bx - ax) * adz - (bz - az) * adx) / den;
+          if (t <= 0 || t >= 1 || u <= 0 || u >= 1) continue;
+          const px = ax + t * adx, pz = az + t * adz, key = Math.round(px) + ',' + Math.round(pz);
+          if (seenX.has(key)) continue; seenX.add(key);
+          addSplit(r1, a, t, px, pz); addSplit(r2, b, u, px, pz);
+        }
+      }
+    }
+  }
+  for (const r of ROADS) {
+    const f = r.f, sp = splits.get(r) || [];
+    let prev = node(f[0], f[1]);
+    for (let k = 2; k < f.length; k += 2) {
+      const mids = sp.filter(s => s.k === k && s.u > 0.001 && s.u < 0.999).sort((a, b) => a.u - b.u);
+      for (const s of mids) { const n = node(s.px, s.pz); link(prev, n, Math.hypot(n.x - prev.x, n.z - prev.z), r.t); prev = n; }
+      const n = node(f[k], f[k + 1]); link(prev, n, Math.hypot(n.x - prev.x, n.z - prev.z), r.t); prev = n;
+    }
+  }
+  const CELL = 100, ng = new Map(), ck = (x, z) => Math.floor(x / CELL) * 4096 + Math.floor(z / CELL);
+  for (const n of nodes.values()) { const key = ck(n.x, n.z); let a = ng.get(key); if (!a) ng.set(key, a = []); a.push(n); }
+  for (const [x, z, s] of joins) {
+    const n = node(x, z);
+    if (s) { const m = node(s.px, s.pz); link(n, m, Math.max(1, s.d), 0, true); continue; }
+    let best = null, bd = 80;
+    const cx = Math.floor(n.x / CELL), cz = Math.floor(n.z / CELL);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const m of ng.get((cx + i) * 4096 + cz + j) || []) {
+      if (m === n || n.e.some(e => e.to === m)) continue;
+      const d = Math.hypot(m.x - n.x, m.z - n.z); if (d < bd) { bd = d; best = m; }
+    }
+    if (best) link(n, best, bd, 0, true);
+  }
+  // still-separate pieces: join each to its neighbours with the shortest gap (up to 300 m), nearest first
+  const comp = new Map(); let nc = 0;
+  for (const n of nodes.values()) {
+    if (comp.has(n)) continue; nc++; comp.set(n, nc); const st = [n];
+    while (st.length) for (const e of st.pop().e) if (!comp.has(e.to)) { comp.set(e.to, nc); st.push(e.to); }
+  }
+  const par = new Map(), find = c => { let r = c; while (par.has(r)) r = par.get(r); while (c !== r) { const p = par.get(c); par.set(c, r); c = p; } return r; };
+  // pass 1: every node, gaps up to 300 m. pass 2: what is left (not in the biggest piece), gaps up to 1.2 km
+  for (const [cells, maxD, G2] of [[3, 300, ng], [3, 1200, null]]) {
+    const size = new Map(); for (const c of comp.values()) { const r = find(c); size.set(r, (size.get(r) || 0) + 1); }
+    let big = null, bs = 0; for (const [r, n] of size) if (n > bs) { bs = n; big = r; }
+    const C2 = maxD / cells;
+    let grid2 = G2;
+    if (!grid2) {   // sparse grid for the long pass: junctions, ends and every 4th plain vertex
+      grid2 = new Map(); let i = 0;
+      for (const n of nodes.values()) { if (n.e.length === 2 && i++ % 4) continue; const k = Math.floor(n.x / C2) * 4096 + Math.floor(n.z / C2); let a = grid2.get(k); if (!a) grid2.set(k, a = []); a.push(n); }
+    }
+    const cands = [];
+    let si = 0;
+    for (const n of (G2 ? nodes.values() : [...grid2.values()].flat())) {
+      if (G2 && n.e.length === 2 && si++ % 3) continue;
+      const mine = find(comp.get(n));
+      if (!G2 && mine === big) continue;
+      const cx = Math.floor(n.x / C2), cz = Math.floor(n.z / C2), bestBy = new Map();
+      for (let i = -cells; i <= cells; i++) for (let j = -cells; j <= cells; j++) for (const m of grid2.get((cx + i) * 4096 + cz + j) || []) {
+        const c = find(comp.get(m)); if (c === mine) continue;
+        const d = Math.hypot(m.x - n.x, m.z - n.z);
+        if (d <= maxD && d < (bestBy.get(c)?.[0] ?? Infinity)) bestBy.set(c, [d, m]);
+      }
+      for (const [, [d, m]] of bestBy) cands.push([d, n, m]);
+    }
+    cands.sort((a, b) => a[0] - b[0]);
+    for (const [d, n, m] of cands) {
+      const a = find(comp.get(n)), b = find(comp.get(m));
+      if (a === b) continue;
+      par.set(a, b); link(n, m, d, 0, true);
+    }
+  }
+  return graph = { nodes };
+}
+function snapRoad(x, z) {
+  for (let rad = 256; rad <= 4096; rad *= 2) { const s = nearestSeg(x, z, rad, null); if (s) return s; }
+  return null;
+}
+function navRoute(a, b) {
+  const G = buildGraph();
+  const sa = snapRoad(a[0], a[1]), sbn = snapRoad(b[0], b[1]);
+  if (!sa || !sbn) return null;
+  const wf = s => s.r.t ? 1 : DIRT_COST;
+  const ends = s => { const f = s.r.f; return [[G.nodes.get(nkey(f[s.k - 2], f[s.k - 1])), s.u * s.sl], [G.nodes.get(nkey(f[s.k], f[s.k + 1])), (1 - s.u) * s.sl]]; };
+  const dist = new Map(), prev = new Map(), heap = [], done = new Set();
+  const push = (n, d, p) => { if (n && d < (dist.has(n) ? dist.get(n) : Infinity)) { dist.set(n, d); prev.set(n, p); hpush(heap, [d, n]); } };
+  for (const [n, l] of ends(sa)) push(n, l * wf(sa), null);
+  const endCost = new Map();
+  for (const [n, l] of ends(sbn)) if (n) endCost.set(n, Math.min(endCost.get(n) ?? Infinity, l * wf(sbn)));
+  let best = sa.r === sbn.r && sa.k === sbn.k ? Math.abs(sa.u - sbn.u) * sa.sl * wf(sa) : Infinity, bestEnd = null;
+  while (heap.length) {
+    const [d, n] = hpop(heap);
+    if (done.has(n)) continue; done.add(n);
+    if (d >= best) break;
+    if (endCost.has(n) && d + endCost.get(n) < best) { best = d + endCost.get(n); bestEnd = n; }
+    for (const e of n.e) if (!done.has(e.to)) push(e.to, d + e.w, { from: n, e });
+  }
+  if (best === Infinity) return null;
+  let paved = 0, dirt = 0;
+  const addLen = (len, t) => { if (t) paved += len; else dirt += len; };
+  const pts = [[sa.px, sa.pz]];
+  if (bestEnd) {
+    const chain = []; let n = bestEnd;
+    while (prev.get(n)) { const p = prev.get(n); chain.unshift(p); n = p.from; }
+    addLen(Math.hypot(n.x - sa.px, n.z - sa.pz), sa.r.t);
+    pts.push([n.x, n.z]);
+    for (const { e } of chain) { addLen(e.len, e.t && !e.gap); pts.push([e.to.x, e.to.z]); }
+    addLen(Math.hypot(bestEnd.x - sbn.px, bestEnd.z - sbn.pz), sbn.r.t);
+  } else addLen(Math.abs(sa.u - sbn.u) * sa.sl, sa.r.t);
+  pts.push([sbn.px, sbn.pz]);
+  const out = pts.map(p => [Math.round(p[0]), Math.round(p[1])]).filter((p, i, arr) => !i || p[0] !== arr[i - 1][0] || p[1] !== arr[i - 1][1]);
+  return { pts: out, sa, sb: sbn, paved, dirt, len: routeLen(out) };
+}
+const nav = { a: null, b: null, res: null, layer: null };
+function navTo(p) {
+  closeForm(true); cancelTool();
+  nav.b = p.slice(); nav.res = null;
+  if (nav.a) return navCompute();
+  tool = 'nav'; $('tNav').classList.add('on');
+  document.body.classList.remove('open');
+  setHint('GPS: click your start point');
+  drawNav();
+}
+function navClick(p) {
+  if (!nav.a || (nav.a && nav.b && nav.res)) { nav.a = p; if (nav.res) { nav.b = null; nav.res = null; } }
+  else if (!nav.b) nav.b = p;
+  else nav.a = p;
+  if (nav.a && nav.b) { tool = null; setHint(''); $('tNav').classList.remove('on'); navCompute(); }
+  else { setHint(nav.a ? 'GPS: now click the destination' : 'GPS: click your start point'); drawNav(); }
+}
+function navCompute() {
+  nav.res = ROADS.length ? navRoute(nav.a, nav.b) : null;
+  drawNav();
+}
+function townsAlong(pts) {
+  const hits = [];
+  for (const t of REF.towns) {
+    if (!TOWN_STYLE[t[1]]) continue;
+    let bi = -1, bd = 400;
+    for (let i = 0; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - t[2], pts[i][1] - t[3]); if (d < bd) { bd = d; bi = i; } }
+    if (bi >= 0) hits.push([bi, t[0]]);
+  }
+  return hits.sort((a, b) => a[0] - b[0]).map(h => h[1]).filter((n, i, a) => a.indexOf(n) === i).slice(0, 6);
+}
+function drawNav() {
+  nav.layer?.remove(); nav.layer = null;
+  const show = !!(nav.a || nav.b);
+  $('navbar').style.display = show && (nav.a && nav.b) ? 'flex' : 'none';
+  if (!show) return;
+  const g = nav.layer = L.featureGroup().addTo(map);
+  const C = '#2ee6ff';
+  let line = null;
+  if (nav.a && nav.b) {
+    line = nav.res ? nav.res.pts : [nav.a, nav.b];
+    const lls = line.map(ll);
+    L.polyline(lls, { color: C, weight: 12, opacity: .7, className: 'ov-glow', interactive: false }).addTo(g);
+    L.polyline(lls, { color: '#000', weight: 8, opacity: .55, interactive: false }).addTo(g);
+    L.polyline(lls, { color: C, weight: 4.5, opacity: 1, interactive: false, dashArray: nav.res ? null : '10 8' }).addTo(g);
+    L.polyline(lls, { color: '#e8fdff', weight: 1.4, opacity: .9, interactive: false, dashArray: nav.res ? null : '10 8' }).addTo(g);
+    if (nav.res) {
+      const st = { color: '#fff', weight: 2, opacity: .8, dashArray: '3 6', interactive: false };
+      if (nav.res.sa.d > 15) L.polyline([ll(nav.a), ll([nav.res.sa.px, nav.res.sa.pz])], st).addTo(g);
+      if (nav.res.sb.d > 15) L.polyline([ll([nav.res.sb.px, nav.res.sb.pz]), ll(nav.b)], st).addTo(g);
+    }
+  }
+  const pin = (p, txt, bg, key) => {
+    const m = L.marker(ll(p), { draggable: true, zIndexOffset: 2000, icon: L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11], html: `<div class="navpin" style="background:${bg}">${txt}</div>` }) }).addTo(g);
+    m.on('dragend', () => { const c = m.getLatLng(); nav[key] = [clampW(Math.round(c.lng)), clampW(Math.round(c.lat))]; if (nav.a && nav.b) navCompute(); else drawNav(); });
+  };
+  if (nav.a) pin(nav.a, 'A', '#56e07a', 'a');
+  if (nav.b) pin(nav.b, 'B', '#ff5b52', 'b');
+  if (nav.a && nav.b) {
+    const straight = dist2(nav.a, nav.b);
+    const t = $('navText'); t.replaceChildren();
+    if (nav.res) {
+      const r = nav.res, mins = (r.paved / (60 / 3.6) + r.dirt / (35 / 3.6) + (r.sa.d + r.sb.d) / (6 / 3.6)) / 60;
+      t.append(el('b', { textContent: `${fmtDist(r.len)} by road` }), ` · ${fmtDist(straight)} straight · ~${Math.max(1, Math.round(mins))} min by car`);
+      const via = townsAlong(r.pts);
+      if (via.length) t.append(el('div', { className: 'via', textContent: 'via ' + via.join(' → ') }));
+      if (r.sa.d > 60 || r.sb.d > 60) t.append(el('div', { className: 'via', textContent: `+ ${fmtDist(r.sa.d + r.sb.d)} on foot to/from the nearest road` }));
+    } else {
+      t.append(el('b', { textContent: fmtDist(straight) }), ROADS.length ? ' straight line · no road connection found' : ' straight line · no road data for this map');
+    }
+  }
+}
+$('tNav').onclick = () => {
+  if (tool === 'nav') { cancelTool(); return; }
+  closeForm(true); cancelTool();
+  nav.a = nav.b = nav.res = null; drawNav();
+  tool = 'nav'; $('tNav').classList.add('on');
+  if (ROADS.length && !refState.roads) { refState.roads = true; buildRefUI(); applyRefs(); }
+  setHint('GPS: click your start point');
+};
+$('navSwap').onclick = () => { [nav.a, nav.b] = [nav.b, nav.a]; navCompute(); };
+$('navClear').onclick = () => { nav.a = nav.b = nav.res = null; drawNav(); if (tool === 'nav') cancelTool(); };
+$('navSave').onclick = () => {
+  const pts = nav.res ? nav.res.pts : [nav.a, nav.b];
+  nav.a = nav.b = nav.res = null; drawNav();
+  startRoute(pts.map(p => [p[0], p[1]]));
+};
+
+// ---------- routes ----------
+let rGroup = null, rLine = null, rUnder = null, wpSel = -1;
+function clearRouteEdit() { rGroup?.remove(); rGroup = rLine = rUnder = null; }
+function appendRoad(pts, r) {
+  let a = roadPts(r);
+  if (pts.length) {
+    const l = pts[pts.length - 1];
+    if (dist2(l, a[a.length - 1]) < dist2(l, a[0])) a.reverse();
+    if (dist2(l, a[0]) < 6) a.shift();
+  }
+  pts.push(...a);
+}
+function renderRouteEdit() {
+  clearRouteEdit();
+  if (!draft || draft.kind !== 'route') return;
+  const pts = draft.points;
+  rGroup = L.featureGroup().addTo(map);
+  if (pts.length >= 2) {
+    L.polyline(pts.map(ll), { color: colorOf(draft), weight: 10, opacity: .6, className: 'ov-glow', interactive: false }).addTo(rGroup);
+    rUnder = L.polyline(pts.map(ll), { color: '#000', weight: 7, opacity: .5, interactive: false }).addTo(rGroup);
+    rLine = L.polyline(pts.map(ll), { color: colorOf(draft), weight: 4 }).addTo(rGroup);
+    rLine.on('click', e => {
+      L.DomEvent.stop(e);
+      if (e.originalEvent.shiftKey) return map.fire('click', { latlng: e.latlng, originalEvent: e.originalEvent });
+      insertWaypoint(e.latlng);
+    });
+  }
+  const b = map.getBounds().pad(0.1), inView = [];
+  pts.forEach((q, i) => { if (b.contains(ll(q))) inView.push(i); });
+  const step = Math.max(1, Math.ceil(inView.length / 80));
+  const show = new Set(inView.filter((_, n) => n % step === 0));
+  pts.forEach((q, i) => { if (q[2] || i === 0 || i === pts.length - 1 || i === wpSel) show.add(i); });
+  for (const i of show) {
+    const q = pts[i];
+    const m = L.marker(ll(q), { draggable: true, keyboard: false, zIndexOffset: 1000,
+      icon: L.divIcon({ className: '', iconSize: [14, 14], iconAnchor: [7, 7], html: `<div class="wph${q[2] ? ' named' : ''}${i === wpSel ? ' sel' : ''}"></div>` }) }).addTo(rGroup);
+    if (q[2]) m.bindTooltip(q[2], { permanent: true, direction: 'top', offset: [0, -7], className: 'lbl' });
+    m.on('drag', () => {
+      const c = m.getLatLng(); q[0] = clampW(Math.round(c.lng)); q[1] = clampW(Math.round(c.lat));
+      const lls = pts.map(ll); rLine?.setLatLngs(lls); rUnder?.setLatLngs(lls);
+    });
+    m.on('dragend', () => { wpSel = i; renderRouteEdit(); updateRouteInfo(); });
+    m.on('click', e => { L.DomEvent.stop(e); wpSel = i; renderRouteEdit(); updateRouteInfo(); });
+  }
+}
+function insertWaypoint(latlng) {
+  const pts = draft.points, x = latlng.lng, z = latlng.lat;
+  let bi = 0, bd = Infinity;
+  for (let i = 1; i < pts.length; i++) {
+    const ax = pts[i - 1][0], az = pts[i - 1][1], dx = pts[i][0] - ax, dz = pts[i][1] - az, l2 = dx * dx + dz * dz;
+    const u = l2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)) : 0;
+    const d = Math.hypot(x - ax - u * dx, z - az - u * dz);
+    if (d < bd) { bd = d; bi = i; }
+  }
+  pts.splice(bi, 0, [clampW(Math.round(x)), clampW(Math.round(z))]);
+  wpSel = bi; renderRouteEdit(); updateRouteInfo();
+}
+function updateRouteInfo() {
+  if (!draft || draft.kind !== 'route') return;
+  const n = draft.points.length, q = draft.points[wpSel];
+  $('routeInfo').textContent = n ? `${fmtDist(routeLen(draft.points))} · ${n} point${n === 1 ? '' : 's'}` : 'No points yet';
+  $('wpBox').style.display = q ? '' : 'none';
+  if (q) {
+    $('wpLabel').textContent = `Waypoint ${wpSel + 1} of ${n} · ${fmt(q)}`;
+    if (document.activeElement !== $('wpName')) $('wpName').value = q[2] || '';
+  }
+}
+function enterRouteTool() {
+  tool = 'route'; wpSel = -1;
+  if (ROADS.length && !refState.roads) { refState.roads = true; buildRefUI(); applyRefs(); }
+  setHint('Route: click to add points · Shift+click a road to add it', true);
+  renderDraft(); openForm();
+}
+function startRoute(pts) {
+  closeForm(true); closeInfo(); cancelTool();
+  draft = newDraft('route', 'route'); draft.points = pts || [];
+  roadSel.clear(); updateSelBar();
+  enterRouteTool();
+  if (pts && pts.length) map.fitBounds(L.latLngBounds(pts.map(ll)).pad(0.3), { maxZoom: 6 });
+}
+function selToRoute() {
+  const rest = new Set(roadSel); if (!rest.size) return;
+  const first = rest.values().next().value; rest.delete(first);
+  let pts = roadPts(first);
+  while (rest.size) {
+    const s0 = pts[0], e0 = pts[pts.length - 1];
+    let best = null, bd = Infinity, mode = 0;
+    for (const r of rest) {
+      const a = [r.f[0], r.f[1]], b = [r.f[r.f.length - 2], r.f[r.f.length - 1]];
+      for (const [d, m] of [[dist2(e0, a), 0], [dist2(e0, b), 1], [dist2(s0, b), 2], [dist2(s0, a), 3]]) if (d < bd) { bd = d; best = r; mode = m; }
+    }
+    rest.delete(best);
+    const rp = roadPts(best, mode === 1 || mode === 3);
+    if (mode < 2) { if (dist2(e0, rp[0]) < 6) rp.shift(); pts = pts.concat(rp); }
+    else { if (dist2(s0, rp[rp.length - 1]) < 6) rp.pop(); pts = rp.concat(pts); }
+  }
+  startRoute(pts);
+}
+$('selRoute').onclick = selToRoute;
+$('selClear').onclick = () => { roadSel.clear(); updateSelBar(); refLayer.draw(); };
+$('wpName').oninput = () => {
+  const q = draft && draft.points && draft.points[wpSel]; if (!q) return;
+  const v = $('wpName').value.trim().slice(0, 40);
+  if (v) q[2] = v; else q.length = 2;
+  renderRouteEdit();
+};
+$('wpDelete').onclick = () => { if (!draft || wpSel < 0) return; draft.points.splice(wpSel, 1); wpSel = -1; renderRouteEdit(); updateRouteInfo(); };
+$('rUndo').onclick = () => { if (!draft) return; draft.points.pop(); wpSel = -1; renderRouteEdit(); updateRouteInfo(); };
+$('rReverse').onclick = () => { if (!draft) return; draft.points.reverse(); wpSel = -1; renderRouteEdit(); updateRouteInfo(); };
+map.on('moveend', () => { if (tool === 'route' && draft) renderRouteEdit(); });
+
+// ---------- settings ----------
+function setZoomSpeed(v) {
+  v = Math.max(0.25, Math.min(4, +v || 1));
+  map.options.wheelPxPerZoomLevel = 160 / v;
+  map.options.zoomDelta = Math.min(2, 0.5 * v);
+  $('zoomSpeed').value = v; $('zoomSpeedVal').textContent = v + '×';
+  ls.set('fm:zoom', v);
+}
+$('zoomSpeed').oninput = e => setZoomSpeed(e.target.value);
+setZoomSpeed(ls.get('fm:zoom', 1));
+$('trToggle').checked = showTr;
+$('trToggle').onchange = e => { showTr = e.target.checked; ls.set('fm:tr', showTr); refLayer.draw(); };
+$('mapSel').onchange = () => switchMap($('mapSel').value);
+function switchMap(id) {
+  if (id === MAPDEF.id) return;
+  if (server && ONLINE) ls.set('fm:map:' + server.id, id);
+  ls.set('fm:curmap', id);
+  location.reload();
+}
+
+// ---------- form ----------
+function buildFlagGrid() {
+  const g = $('fFlagGrid'); g.replaceChildren();
+  g.append(el('button', { type: 'button', className: 'none' + (!draft?.flag ? ' on' : ''), textContent: 'No flag', onclick: () => pickFlag(null) }));
+  for (const fl of FLAGS) g.append(el('button', { type: 'button', title: fl.name, className: draft?.flag === fl.id ? 'on' : '', innerHTML: fl.svg, onclick: () => pickFlag(fl.id) }));
+}
+function pickFlag(id) {
+  if (!draft) return;
+  if (id) { draft.flag = id; draft.color = FLAG[id].c[0]; delete draft.br; $('fColor').value = draft.color; }
+  else delete draft.flag;
+  $('fFlagGrid').style.display = 'none';
+  syncFlag(); syncLook(); renderDraft();
+}
+function syncFlag() {
+  const fl = draft?.flag && FLAG[draft.flag];
+  $('fFlagBtn').replaceChildren(el('span', { className: 'fl', innerHTML: fl ? fl.svg : '' }), el('span', { textContent: fl ? fl.name : 'No flag — pick an armband flag' }));
+  const sw = $('flagSwatches'); sw.replaceChildren();
+  if (fl) for (const c of fl.c) sw.append(el('button', { type: 'button', title: `${fl.name} colour ${c}`, style: `background:${c};--c:${c}`, onclick: () => { draft.color = c; $('fColor').value = c; renderDraft(); } }));
+}
+$('fFlagBtn').onclick = () => { const g = $('fFlagGrid'); const open = g.style.display === 'none'; if (open) buildFlagGrid(); g.style.display = open ? '' : 'none'; };
+function buildFields() {
+  const box = $('fFields'); box.replaceChildren();
+  const spec = FIELDS[draft.cat] || [];
+  draft.d = draft.d || {};
+  for (const fd of spec) {
+    const v = draft.d[fd.k];
+    box.append(el('label', { textContent: fd.l }));
+    if (fd.t === 'select') {
+      const s = el('select', {}, el('option', { value: '', textContent: '—' }), ...fd.o.map(o => el('option', { value: o, textContent: o })));
+      s.value = v || ''; s.onchange = () => { draft.d[fd.k] = s.value || undefined; };
+      box.append(s);
+    } else if (fd.t === 'range') {
+      const val = el('b', { textContent: v == null ? '—' : v + fd.unit });
+      const r = el('input', { type: 'range', min: fd.min, max: fd.max, step: fd.step, value: v ?? 50 });
+      r.oninput = () => { draft.d[fd.k] = +r.value; val.textContent = r.value + fd.unit; };
+      box.lastChild.className = 'rangelbl'; box.lastChild.append(val);
+      box.append(r);
+    } else if (fd.t === 'checks') {
+      const set = new Set(Array.isArray(v) ? v : []);
+      const c = el('div', { className: 'checks' });
+      for (const o of fd.o) {
+        const cb = el('input', { type: 'checkbox', checked: set.has(o) });
+        cb.onchange = () => { cb.checked ? set.add(o) : set.delete(o); draft.d[fd.k] = fd.o.filter(x => set.has(x)); };
+        c.append(el('label', {}, cb, o));
+      }
+      box.append(c);
+    } else {
+      const i = el('input', { type: fd.t === 'datetime' ? 'datetime-local' : 'text', maxLength: 200, placeholder: fd.ph || '', value: v || '' });
+      i.oninput = () => { draft.d[fd.k] = i.value.trim() || undefined; };
+      box.append(i);
+    }
+  }
+}
+function buildParentSel() {
+  const s = $('fParent'); s.replaceChildren(el('option', { value: '', textContent: '— none —' }));
+  const ctr = draft.points?.length >= 3 ? centerOf(draft) : draft.pos;
+  const cands = [...feats.values()].filter(f => ['base', 'territory', 'ally', 'enemy'].includes(f.cat))
+    .map(f => [f, ctr ? (inside(f, ctr) ? 0 : dist2(centerOf(f), ctr)) : 0]).sort((a, b) => a[1] - b[1]).slice(0, 40);
+  for (const [f, d] of cands) s.append(el('option', { value: f.id, textContent: `${catOf(f).icon} ${featTitle(f)}${ctr ? ' · ' + (d ? fmtDist(d) : 'contains it') : ''}` }));
+  if (!draft.parent && cands.length && cands[0][1] < 800) draft.parent = cands[0][0].id;
+  s.value = draft.parent || '';
+}
+$('fParent').onchange = () => { draft.parent = $('fParent').value || undefined; if (draft.parent) delete draft.num; };
+function syncVis() {
+  const v = draft.$?.vis || 'faction';
+  for (const b of $('fVis').children) {
+    b.classList.toggle('on', b.dataset.v === v);
+    b.disabled = b.dataset.v === 'faction' && !myFac && v !== 'faction';
+    b.title = b.disabled ? 'Join or create a faction first' : '';
+  }
+}
+for (const b of $('fVis').children) b.onclick = () => { if (!draft) return; draft.$ = { ...(draft.$ || {}), vis: b.dataset.v }; syncVis(); };
+function openForm() {
+  const f = draft;
+  $('info').classList.remove('show');
+  $('formTitle').textContent = (feats.has(f.id) ? 'Edit ' : 'New ') + (f.cat === 'compound' ? 'compound' : ({ marker: 'pin', circle: 'circle zone', polygon: 'area', route: 'route' })[f.kind]);
+  $('fName').value = f.name || '';
+  $('fName').placeholder = f.cat === 'compound' ? 'Optional, e.g. Garage' : '';
+  $('fCat').value = catOf(f).id;
+  $('fNotes').value = f.notes || '';
+  $('fColor').value = rgbHex(hexRgb(baseColorOf(f)));
+  syncLook(); syncFlag(); syncVis(); buildFields();
+  $('fFlagGrid').style.display = 'none';
+  $('fVis').previousElementSibling.style.display = $('fVis').style.display = ONLINE ? '' : 'none';
+  $('fParentWrap').style.display = f.cat === 'compound' ? '' : 'none';
+  if (f.cat === 'compound') buildParentSel();
+  $('fRadius').value = f.radius || 200;
+  $('fRadiusWrap').style.display = f.kind === 'circle' ? '' : 'none';
+  $('fDelete').style.display = feats.has(f.id) ? '' : 'none';
+  $('fMove').textContent = f.kind === 'polygon' ? 'Redraw' : 'Reposition';
+  const isRoute = f.kind === 'route';
+  $('fMove').style.display = isRoute ? 'none' : '';
+  $('fCatWrap').style.display = isRoute ? 'none' : '';
+  $('routeBox').style.display = isRoute ? '' : 'none';
+  $('form').classList.add('show');
+  $('scroll').scrollTop = 0;
+  if (isRoute) { updateRouteInfo(); return; }
+  document.body.classList.add('open');
+  setTimeout(() => $('fName').focus(), 50);
+}
+function closeForm(silent) {
+  if (!$('form').classList.contains('show')) return;
+  $('form').classList.remove('show');
+  if (tool === 'route') { tool = null; setHint(''); }
+  wpSel = -1;
+  const id = editingId; draft = null; editingId = null; renderDraft();
+  if (id) renderFeature(id);
+  if (!silent) document.body.classList.remove('open');
+}
+function startEdit(id) {
+  const f = feats.get(id); if (!f) return;
+  if (!canEdit(f)) return toast("You can't edit this one");
+  closeInfo(); closeForm(true); cancelTool();
+  draft = JSON.parse(JSON.stringify(f)); editingId = id;
+  renderFeature(id);
+  if (draft.kind === 'route') return enterRouteTool();
+  renderDraft(); openForm();
+}
+function readForm() {
+  if (!draft) return;
+  draft.name = $('fName').value.trim();
+  if (draft.kind !== 'route') {
+    const old = draft.cat; draft.cat = $('fCat').value;
+    if (old !== draft.cat) buildFields();
+  }
+  draft.notes = $('fNotes').value.trim();
+  if (draft.kind === 'circle') draft.radius = Math.max(10, Math.min(8000, +$('fRadius').value || 200));
+}
+$('fCat').onchange = () => { readForm(); if (!draft.color) $('fColor').value = rgbHex(hexRgb(baseColorOf(draft))); $('fParentWrap').style.display = draft.cat === 'compound' ? '' : 'none'; if (draft.cat === 'compound') buildParentSel(); syncLook(); renderDraft(); };
+$('fRadius').oninput = () => { readForm(); renderDraft(); };
+$('fName').oninput = () => { readForm(); renderDraft(); };
+$('fColor').oninput = () => { draft.color = $('fColor').value; renderDraft(); };
+$('fColorReset').onclick = () => { delete draft.color; delete draft.br; delete draft.op; delete draft.fill; $('fColor').value = rgbHex(hexRgb(baseColorOf(draft))); syncLook(); renderDraft(); };
+const SWATCHES = ['#ff3b3b', '#ff8a00', '#ffd400', '#7dff3a', '#00e5a0', '#00d9ff', '#3d7bff', '#a24bff', '#ff3fd2', '#ffffff'];
+for (const c of SWATCHES) $('swatches').append(el('button', { type: 'button', title: c, style: `background:${c};--c:${c}`,
+  onclick: () => { if (!draft) return; draft.color = c; $('fColor').value = c; renderDraft(); } }));
+function syncLook() {
+  if (!draft) return;
+  const br = Math.round(brOf(draft) * 100), op = Math.round(opOf(draft) * 100);
+  $('fBr').value = br; $('fBrVal').textContent = (br > 0 ? '+' : '') + br;
+  $('fOp').value = op; $('fOpVal').textContent = op + '%';
+  $('fOpName').textContent = isZone(draft) ? 'Fill opacity' : 'Opacity';
+  $('fOp').min = isZone(draft) ? 0 : 15;
+  $('fFillWrap').style.display = isZone(draft) ? '' : 'none';
+  for (const b of $('fFill').children) b.classList.toggle('on', b.dataset.v === fillOf(draft));
+}
+$('fBr').oninput = () => { if (!draft) return; draft.br = +$('fBr').value / 100; if (!draft.br) delete draft.br; syncLook(); renderDraft(); };
+$('fOp').oninput = () => { if (!draft) return; draft.op = +$('fOp').value / 100; syncLook(); renderDraft(); };
+for (const b of $('fFill').children) b.onclick = () => { if (!draft) return; draft.fill = b.dataset.v; if (draft.fill === 'solid') delete draft.fill; syncLook(); renderDraft(); };
+$('fCancel').onclick = () => { const id = editingId; closeForm(); if (id) openInfo(id); };
+$('fDelete').onclick = () => { const id = draft.id; closeForm(); del(id); };
+$('fMove').onclick = () => {
+  readForm(); document.body.classList.remove('open');
+  if (draft.kind === 'polygon') { tool = 'poly'; polyPts = []; setHint('Click to outline the area (3+ points)', true); }
+  else { tool = 'place'; setHint('Click the new position'); }
+};
+$('fSave').onclick = () => {
+  readForm();
+  if (draft.kind === 'route') { if (draft.points.length < 2) return toast('Add at least 2 points to the route'); }
+  else if (draft.kind !== 'polygon' && !draft.pos) return toast('Click the map to place it first');
+  if (draft.cat === 'compound') { if (!draft.num) draft.num = nextCompoundNum(draft.parent || null); }
+  else { delete draft.parent; delete draft.num; }
+  if (draft.d) { for (const k of Object.keys(draft.d)) if (draft.d[k] == null || draft.d[k] === '') delete draft.d[k]; if (!Object.keys(draft.d).length) delete draft.d; }
+  if (tool === 'route') { tool = null; setHint(''); }
+  wpSel = -1;
+  const f = { ...draft, author: me?.username || 'unknown', updated: Date.now() };
+  $('form').classList.remove('show'); draft = null; editingId = null; renderDraft();
+  upsert(f);
+  openInfo(f.id);
+};
+
+// ---------- data ----------
+function applyLocal(f) { feats.set(f.id, f); renderFeature(f.id); refreshSide(); if (infoId === f.id) renderInfo(); }
+function removeLocal(id) { if (!feats.delete(id)) return; renderFeature(id); refreshSide(); if (infoId === id) closeInfo(); }
+function upsert(f) {
+  const m = f.$ = { ...(f.$ || {}) };
+  if (!m.owner) m.owner = me?.id;
+  if (!m.vis) m.vis = defaultVis(f.cat);
+  if (m.vis === 'faction' && !myFac && !m.fac) m.vis = 'private';
+  if (!m.fac && m.vis !== 'private') m.fac = myFac;
+  applyLocal(f); store.save(f);
+}
+function del(id) {
+  const f = feats.get(id); if (!f) return;
+  const kids = compoundsOf(id);
+  if (!confirm(`Delete "${featTitle(f)}"${kids.length ? ` (its ${kids.length} compound${kids.length > 1 ? 's stay but lose their base' : ' stays but loses its base'})` : ''} for everyone? Its notes are deleted too.`)) return;
+  removeLocal(id); store.remove(id);
+}
+const dataOf = f => { const { $: _m, ...d } = f; return d; };
+function rowToFeat(r) {
+  const f = r.data;
+  if (!valid(f) || f.id !== r.id) return null;
+  f.$ = { vis: r.vis, fac: r.faction_id, owner: r.owner, saved: true };
+  return f;
+}
+const localKey = () => 'fm:data:local:' + MAPDEF.id;
+const localStore = {
+  async init() { for (const f of ls.get(localKey(), [])) if (valid(f)) feats.set(f.id, f); setStatus('Local only'); },
+  save() { ls.set(localKey(), [...feats.values()]); },
+  remove() { ls.set(localKey(), [...feats.values()]); },
+};
+const remoteStore = {
+  async save(f) {
+    const m = f.$, data = dataOf(f);
+    let error;
+    if (m.saved) ({ error } = await sb.from('features').update({ vis: m.vis, faction_id: m.fac || null, map: MAPDEF.id, data }).eq('id', f.id));
+    else ({ error } = await sb.from('features').insert({ id: f.id, server_id: server.id, faction_id: m.fac || null, owner: me.id, vis: m.vis, map: MAPDEF.id, data }));
+    if (error) { console.error(error); toast('Not saved: ' + error.message); return; }
+    m.saved = true;
+    if (infoId === f.id) renderInfo();
+  },
+  async remove(id) {
+    const { error } = await sb.from('features').delete().eq('id', id);
+    if (error) { console.error(error); toast('Delete not synced: ' + error.message); }
+  },
+};
+const store = { save: f => (ONLINE ? remoteStore : localStore).save(f), remove: id => (ONLINE ? remoteStore : localStore).remove(id) };
+function setStatus(text, cls) { const s = $('status'); s.textContent = text; s.className = 'pill' + (cls ? ' ' + cls : ''); }
+
+// ---------- accounts ----------
+const emailOf = u => `${u.toLowerCase()}@${CFG.authEmailDomain || 'players.factionmap.app'}`;
+let authMode = 'login';
+function showAuth(mode) {
+  if (!sb) return toast('Accounts are not set up on this map yet.');
+  $('srvpick').classList.remove('show');
+  if (mode) [...$('authSeg').children].find(b => b.dataset.m === mode)?.click();
+  $('auth').classList.add('show');
+  setTimeout(() => $('aUser').focus(), 50);
+}
+function hideAuth() { $('auth').classList.remove('show'); $('aErr').textContent = ''; }
+$('aSkip').onclick = hideAuth;
+$('auth').onclick = e => { if (e.target === $('auth')) hideAuth(); };
+$('loginBtn').onclick = () => showAuth('login');
+// map without an account: everything works, markers stay in this browser
+async function startGuest() {
+  me = null; ONLINE = false; server = null;
+  $('srvSel').style.display = 'none';
+  $('who').textContent = HAS_SB ? 'Guest · your markers are saved in this browser only' : 'Local mode · saved in this browser';
+  $('loginBtn').style.display = sb ? '' : 'none';
+  feats.clear(); await localStore.init(); renderAll();
+  setStatus(HAS_SB ? 'Guest' : 'Local only');
+}
+function loginPrompt(box, what) {
+  if (!HAS_SB) { box.append(el('p', { className: 'dim', textContent: `${what} need live sync. Add your Supabase details to config.js.` })); return true; }
+  if (!me) {
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: 'Log in to use this' }),
+      el('p', { className: 'dim', textContent: `${what} need an account. The map itself works without one; your markers just stay in this browser.` }),
+      el('div', { className: 'formbtns' }, el('button', { className: 'primary', textContent: 'Log in', onclick: () => showAuth('login') }),
+        el('button', { textContent: 'Create account', onclick: () => showAuth('signup') }))));
+    return true;
+  }
+  if (!server) {
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: 'Pick a server' }),
+      el('p', { className: 'dim', textContent: `${what} live inside a server. Join one with its code or start your own.` }),
+      el('div', { className: 'formbtns' }, el('button', { className: 'primary', textContent: 'Join or create a server', onclick: () => showPicker(true) }),
+        el('button', { textContent: 'Log out', onclick: logout }))));
+    return true;
+  }
+  return false;
+}
+for (const b of $('authSeg').children) b.onclick = () => {
+  authMode = b.dataset.m;
+  for (const x of $('authSeg').children) x.classList.toggle('on', x === b);
+  const up = authMode === 'signup';
+  $('authTitle').textContent = up ? 'Create an account' : 'Log in';
+  $('aGo').textContent = up ? 'Create account' : 'Log in';
+  $('aPass2Wrap').style.display = up ? '' : 'none';
+  $('aPass').autocomplete = up ? 'new-password' : 'current-password';
+  $('aErr').textContent = '';
+};
+$('authForm').onsubmit = async e => {
+  e.preventDefault();
+  const u = $('aUser').value.trim(), p = $('aPass').value;
+  $('aErr').textContent = '';
+  if (!/^[A-Za-z0-9_.-]{3,20}$/.test(u)) return $('aErr').textContent = 'Username: 3–20 letters, numbers, _ . or -';
+  if (p.length < 6) return $('aErr').textContent = 'Password: at least 6 characters';
+  $('aGo').disabled = true;
+  try {
+    if (authMode === 'signup') {
+      if (p !== $('aPass2').value) throw new Error('The two passwords are different');
+      const { data: free, error: e1 } = await sb.rpc('username_available', { p_name: u });
+      if (e1) throw e1;
+      if (!free) throw new Error('That username is taken');
+      const { data, error } = await sb.auth.signUp({ email: emailOf(u), password: p, options: { data: { username: u } } });
+      if (error) throw error;
+      if (!data.session) throw new Error('Account created, but sign-in needs e-mail confirmation turned off in Supabase (Auth → Sign In / Providers → Confirm email).');
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email: emailOf(u), password: p });
+      if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Wrong username or password' : error.message);
+    }
+    $('aPass').value = $('aPass2').value = '';
+    hideAuth();
+    const { data: { user } } = await sb.auth.getUser();
+    await afterLogin(user);
+  } catch (err) { $('aErr').textContent = err.message || String(err); }
+  finally { $('aGo').disabled = false; }
+};
+async function afterLogin(u) {
+  const { data: p } = await sb.from('profiles').select('*').eq('id', u.id).maybeSingle();
+  me = { id: u.id, username: p?.username || u.user_metadata?.username || 'player' };
+  profiles.set(me.id, me.username);
+  $('loginBtn').style.display = 'none';
+  $('srvSel').style.display = '';
+  $('who').textContent = `${me.username} · no server yet`;
+  setStatus('Not on a server');
+  refreshPanes();
+  await loadServers();
+  const want = ls.get('fm:server', null);
+  const pick = servers.find(s => s.server.id === want) || servers[0];
+  if (!pick) return showPicker(true);
+  enterServer(pick.server.id);
+}
+function refreshPanes() {
+  if ($('paneFaction').classList.contains('show')) renderFaction();
+  if ($('paneServer').classList.contains('show')) renderServer();
+}
+async function leftServer() {
+  ls.set('fm:server', null);
+  if (channel) sb.removeChannel(channel);
+  channel = null; server = null; myRole = null; myFac = null; ONLINE = false;
+  factions.clear(); notes.clear(); feats.clear(); closeInfo();
+  await localStore.init(); renderAll(); refreshPanes();
+  $('who').textContent = `${me.username} · no server yet`;
+  setStatus('Not on a server');
+  await loadServers(); showPicker(true);
+}
+async function logout() {
+  if (channel) { sb.removeChannel(channel); channel = null; }
+  me = null;
+  await sb.auth.signOut();
+  location.reload();
+}
+
+// ---------- servers ----------
+async function loadServers() {
+  const { data, error } = await sb.from('server_members').select('role, servers(*)').eq('user_id', me.id);
+  if (error) { toast('Could not load servers: ' + error.message); servers = []; }
+  else servers = (data || []).filter(r => r.servers).map(r => ({ role: r.role, server: r.servers })).sort((a, b) => a.server.name.localeCompare(b.server.name));
+  const sel = $('srvSel'); sel.replaceChildren();
+  for (const s of servers) sel.append(el('option', { value: s.server.id, textContent: s.server.name }));
+  sel.append(el('option', { value: '+', textContent: '＋ Join / create…' }));
+  if (server) sel.value = server.id;
+}
+$('srvSel').onchange = () => { const v = $('srvSel').value; if (v === '+') { $('srvSel').value = server?.id || ''; showPicker(true); } else enterServer(v); };
+function showPicker(closable) {
+  const list = $('spList'); list.replaceChildren();
+  for (const s of servers) list.append(el('div', { className: 'item', onclick: () => { $('srvpick').classList.remove('show'); enterServer(s.server.id); } },
+    el('span', { textContent: '🖥️' }), el('span', { className: 'nm', textContent: s.server.name }),
+    el('span', { className: 'sub', textContent: `${mapTitle(MAPS.find(m => m.id === s.server.map) || { title: s.server.map })} · ${s.role}` })));
+  $('spClose').style.display = closable ? '' : 'none';
+  $('spErr').textContent = '';
+  $('srvpick').classList.add('show');
+}
+$('spClose').onclick = () => $('srvpick').classList.remove('show');
+$('spLogout').onclick = logout;
+$('spJoin').onclick = async () => {
+  const code = $('spCode').value.trim(); if (!code) return;
+  $('spErr').textContent = '';
+  let { data, error } = await sb.rpc('join_server', { p_code: code });
+  let sid = data?.id;
+  if (error && /No server/.test(error.message)) {
+    const r = await sb.rpc('join_faction', { p_code: code });
+    if (r.error) return $('spErr').textContent = /No faction/.test(r.error.message) ? 'No server or faction uses that code.' : r.error.message;
+    sid = r.data.server_id; toast(`Joined faction ${r.data.name}`);
+  } else if (error) return $('spErr').textContent = error.message;
+  $('spCode').value = '';
+  await loadServers(); $('srvpick').classList.remove('show'); enterServer(sid);
+};
+$('spCreate').onclick = async () => {
+  const name = $('spName').value.trim();
+  if (name.length < 2) return $('spErr').textContent = 'Give the server a name';
+  const { data, error } = await sb.rpc('create_server', { p_name: name, p_map: $('spMap').value });
+  if (error) return $('spErr').textContent = error.message;
+  $('spName').value = '';
+  ls.set('fm:map:' + data.id, data.map);
+  await loadServers(); $('srvpick').classList.remove('show'); enterServer(data.id);
+  toast('Server created. Share the join code from the Server tab.');
+};
+async function fetchAll(make) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await make().range(from, from + 999);
+    if (error) throw error;
+    out.push(...data);
+    if (data.length < 1000) return out;
+  }
+}
+async function loadProfiles(ids) {
+  const need = [...new Set(ids)].filter(id => id && !profiles.has(id));
+  for (let i = 0; i < need.length; i += 150) {
+    const { data } = await sb.from('profiles').select('id, username').in('id', need.slice(i, i + 150));
+    for (const p of data || []) profiles.set(p.id, p.username);
+  }
+}
+async function enterServer(sid) {
+  const s = servers.find(x => x.server.id === sid);
+  if (!s) return showPicker(true);
+  ls.set('fm:server', sid);
+  const want = ls.get('fm:map:' + sid, null) || s.server.map;
+  if (want !== MAPDEF.id && MAPS.some(m => m.id === want)) { ls.set('fm:curmap', want); location.reload(); return; }
+  server = s.server; myRole = s.role; ONLINE = true;
+  $('srvSel').value = sid;
+  $('who').textContent = `${me.username} · ${myRole}`;
+  closeForm(true); closeInfo();
+  setStatus('Loading…');
+  try {
+    await loadMeta();
+    await loadFeatures();
+  } catch (err) { console.error(err); setStatus('Sync error', 'err'); toast('Could not load the map: ' + err.message); return; }
+  subscribe();
+}
+async function loadMeta() {
+  const sid = server.id;
+  const [fa, fm, sm, inv] = await Promise.all([
+    sb.from('factions').select('*').eq('server_id', sid),
+    sb.from('faction_members').select('*').eq('server_id', sid),
+    sb.from('server_members').select('*').eq('server_id', sid),
+    sb.from('faction_invites').select('*, factions(*)').eq('user_id', me.id),
+  ]);
+  for (const r of [fa, fm, sm, inv]) if (r.error) throw r.error;
+  factions.clear(); for (const f of fa.data) factions.set(f.id, f);
+  fmembers = fm.data; smembers = sm.data;
+  invites = inv.data.filter(i => i.factions && i.factions.server_id === sid);
+  const mine = fmembers.find(m => m.user_id === me.id);
+  const prevFac = myFac;
+  myFac = mine?.faction_id || null; myFacRole = mine?.role || null;
+  const meS = smembers.find(m => m.user_id === me.id);
+  if (!meS) { toast('You are no longer a member of this server'); await leftServer(); return false; }
+  myRole = meS.role;
+  outInvites = [];
+  if (myFac && (myFacRole === 'leader' || myFacRole === 'officer')) {
+    const { data } = await sb.from('faction_invites').select('*').eq('faction_id', myFac);
+    outInvites = data || [];
+  }
+  await loadProfiles([...smembers.map(m => m.user_id), ...outInvites.map(i => i.user_id), ...invites.map(i => i.invited_by)]);
+  $('who').textContent = `${me.username} · ${myRole}${myFac ? ' · ' + facLabel(factions.get(myFac)) : ''}`;
+  $('invDot').style.display = invites.length ? '' : 'none';
+  $('invDot').textContent = invites.length;
+  if ($('paneFaction').classList.contains('show')) renderFaction();
+  if ($('paneServer').classList.contains('show')) renderServer();
+  return prevFac !== myFac;
+}
+async function loadFeatures() {
+  const sid = server.id;
+  const [rows, nrows] = await Promise.all([
+    fetchAll(() => sb.from('features').select('*').eq('server_id', sid).eq('map', MAPDEF.id)),
+    fetchAll(() => sb.from('notes').select('*').eq('server_id', sid)),
+  ]);
+  feats.clear(); notes.clear();
+  for (const r of rows) { const f = rowToFeat(r); if (f) feats.set(f.id, f); }
+  for (const n of nrows) notes.set(n.id, n);
+  await loadProfiles([...rows.map(r => r.owner), ...nrows.map(n => n.author)]);
+  renderAll();
+  if (infoId) renderInfo();
+}
+let metaT = null;
+function metaChanged() {
+  clearTimeout(metaT);
+  metaT = setTimeout(async () => {
+    if (!server || !me) return;
+    try {
+      const facChanged = await loadMeta();
+      if (facChanged) await loadFeatures(); else renderAll();
+    } catch (err) { console.error(err); }
+  }, 400);
+}
+function onFeatRow(msg) {
+  const r = msg.new; if (!r) return;
+  if (r.map !== MAPDEF.id) { removeLocal(r.id); return; }
+  const ft = rowToFeat(r); if (!ft) return;
+  const mine = feats.get(ft.id);
+  if (mine && (mine.updated || 0) > (ft.updated || 0)) return;
+  if (!profiles.has(r.owner)) loadProfiles([r.owner]).then(() => { if (infoId === r.id) renderInfo(); });
+  if (ft.id === editingId) { feats.set(ft.id, ft); return; }
+  applyLocal(ft);
+}
+function subscribe() {
+  if (channel) sb.removeChannel(channel);
+  const sid = server.id, f = `server_id=eq.${sid}`;
+  channel = sb.channel('srv-' + sid)
+    // DELETE events only carry the primary key, so a server_id filter never matches them: listen unfiltered
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'features' }, msg => {
+      if (msg.old?.id && msg.old.id !== editingId) removeLocal(msg.old.id);
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notes' }, msg => {
+      if (msg.old?.id && notes.delete(msg.old.id) && infoId) renderInfo();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'features', filter: f }, onFeatRow)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'features', filter: f }, onFeatRow)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: f }, async msg => {
+      if (msg.eventType === 'DELETE' || !msg.new) return;
+      notes.set(msg.new.id, msg.new); await loadProfiles([msg.new.author]);
+      if (infoId) renderInfo();
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'factions' }, metaChanged)
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'faction_members' }, metaChanged)
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'server_members' }, metaChanged)
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'faction_invites' }, metaChanged)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'factions', filter: f }, metaChanged)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'faction_members', filter: f }, metaChanged)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: f }, metaChanged)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'faction_invites', filter: `user_id=eq.${me.id}` }, metaChanged)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers', filter: `id=eq.${sid}` }, msg => { if (msg.new) { server = { ...server, ...msg.new }; loadServers(); if ($('paneServer').classList.contains('show')) renderServer(); } })
+    .subscribe(st => {
+      if (st === 'SUBSCRIBED') setStatus('Live', 'live');
+      else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') setStatus('Reconnecting…', 'err');
+    });
+}
+async function rpc(name, args, okMsg) {
+  const { data, error } = await sb.rpc(name, args);
+  if (error) { toast(error.message); return null; }
+  if (okMsg) toast(okMsg);
+  return data ?? true;
+}
+
+// ---------- faction tab ----------
+function flagPicker(cur, onPick) {
+  const wrap = el('div');
+  const btn = el('button', { type: 'button', className: 'flagbtn' });
+  const grid = el('div', { className: 'flaggrid', style: 'display:none' });
+  const sync = () => btn.replaceChildren(el('span', { className: 'fl', innerHTML: cur ? flagSvg(cur) : '' }), el('span', { textContent: cur ? FLAG[cur]?.name : 'Pick your armband flag' }));
+  btn.onclick = () => {
+    if (grid.style.display === 'none') {
+      grid.replaceChildren(...FLAGS.map(fl => el('button', { type: 'button', title: fl.name, className: fl.id === cur ? 'on' : '', innerHTML: fl.svg,
+        onclick: () => { cur = fl.id; grid.style.display = 'none'; sync(); onPick(fl.id); } })));
+      grid.style.display = '';
+    } else grid.style.display = 'none';
+  };
+  sync(); wrap.append(btn, grid);
+  return wrap;
+}
+function renderFaction() {
+  const box = $('paneFaction'); box.replaceChildren();
+  if (loginPrompt(box, 'Factions')) return;
+  if (invites.length) {
+    box.append(el('h2', { textContent: 'Invites' }));
+    for (const inv of invites) {
+      const f = inv.factions;
+      box.append(el('div', { className: 'card' },
+        el('div', { className: 'row' }, f.flag ? el('span', { className: 'miniflag', style: 'width:34px', innerHTML: flagSvg(f.flag) }) : '',
+          el('b', { textContent: facLabel(f) })),
+        el('div', { className: 'dim', textContent: `from ${uname(inv.invited_by)} · ${ago(inv.created_at)}` }),
+        el('div', { className: 'row', style: 'margin-top:6px' },
+          el('button', { className: 'primary', textContent: 'Join', onclick: async () => { if (myFac && !confirm('This leaves your current faction. Continue?')) return; if (myFac) await rpc('leave_faction', { p_server: server.id }); if (await rpc('accept_invite', { p_faction: f.id }, `Joined ${f.name}`)) metaChanged(); } }),
+          el('button', { textContent: 'Decline', onclick: async () => { await sb.from('faction_invites').delete().eq('faction_id', f.id).eq('user_id', me.id); metaChanged(); } }))));
+    }
+  }
+  const fac = myFac && factions.get(myFac);
+  if (!fac) {
+    box.append(el('h2', { textContent: 'Your faction' }), el('p', { className: 'dim', textContent: "You're not in a faction on this server. Create one, or join with an invite code from a leader." }));
+    const name = el('input', { maxLength: 40, placeholder: 'Faction name' });
+    const tag = el('input', { maxLength: 6, placeholder: 'Tag (optional)', style: 'width:110px' });
+    let flag = null;
+    const color = el('input', { type: 'color', value: '#e0a13a', style: 'width:52px;padding:2px;height:34px' });
+    const fp = flagPicker(null, id => { flag = id; color.value = FLAG[id].c[0]; });
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: 'Create a faction' }),
+      el('label', { textContent: 'Name and tag' }), el('div', { className: 'row' }, name, tag),
+      el('label', { textContent: 'Flag / armband' }), fp,
+      el('label', { textContent: 'Faction colour' }), color,
+      el('div', { className: 'formbtns' }, el('button', { className: 'primary', textContent: 'Create faction', onclick: async () => {
+        if (name.value.trim().length < 2) return toast('Name your faction');
+        if (await rpc('create_faction', { p_server: server.id, p_name: name.value, p_tag: tag.value, p_color: color.value, p_flag: flag }, 'Faction created')) metaChanged();
+      } }))));
+    const code = el('input', { maxLength: 12, placeholder: 'Invite code' });
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: 'Join with an invite code' }),
+      el('div', { className: 'row', style: 'margin-top:6px' }, code, el('button', { textContent: 'Join', onclick: async () => {
+        const r = await rpc('join_faction', { p_code: code.value });
+        if (!r) return;
+        if (r.server_id !== server.id) { await loadServers(); enterServer(r.server_id); } else metaChanged();
+        toast(`Joined ${r.name}`);
+      } }))));
+  } else {
+    const lead = myFacRole === 'leader' || myFacRole === 'officer';
+    const card = el('div', { className: 'card', style: `border-color:${fac.color || 'var(--line)'}` });
+    card.append(el('div', { className: 'row' }, fac.flag ? el('div', { style: 'width:64px', innerHTML: flagSvg(fac.flag) }) : '',
+      el('div', {}, el('h3', { textContent: facLabel(fac) }), el('div', { className: 'dim', textContent: `You are ${myFacRole} · ${fmembers.filter(m => m.faction_id === fac.id).length} members` }))));
+    if (lead) {
+      const name = el('input', { maxLength: 40, value: fac.name });
+      const tag = el('input', { maxLength: 6, value: fac.tag || '', style: 'width:110px' });
+      let flag = fac.flag;
+      const color = el('input', { type: 'color', value: fac.color || '#e0a13a', style: 'width:52px;padding:2px;height:34px' });
+      const fp = flagPicker(fac.flag, id => { flag = id; color.value = FLAG[id].c[0]; });
+      const det = el('details', { style: 'margin-top:8px' }, el('summary', { className: 'dim', textContent: 'Edit faction' }),
+        el('label', { textContent: 'Name and tag' }), el('div', { className: 'row' }, name, tag),
+        el('label', { textContent: 'Flag' }), fp, el('label', { textContent: 'Colour' }), color,
+        el('div', { className: 'formbtns' }, el('button', { className: 'primary', textContent: 'Save', onclick: async () => {
+          const { error } = await sb.from('factions').update({ name: name.value.trim(), tag: tag.value.trim() || null, flag, color: color.value }).eq('id', fac.id);
+          if (error) return toast(error.message); toast('Faction updated'); metaChanged();
+        } })));
+      card.append(det);
+    }
+    box.append(card);
+    if (lead) {
+      box.append(el('h2', { textContent: 'Invite players' }));
+      const who = el('input', { maxLength: 20, placeholder: 'Their username' });
+      box.append(el('div', { className: 'row' }, who, el('button', { className: 'primary', textContent: 'Invite', onclick: async () => {
+        if (!who.value.trim()) return;
+        if (await rpc('invite_user', { p_faction: fac.id, p_username: who.value }, `Invited ${who.value.trim()}`)) { who.value = ''; metaChanged(); }
+      } })));
+      box.append(el('div', { className: 'row', style: 'margin-top:8px' }, el('span', { className: 'dim', textContent: 'Or share this invite code:' }),
+        el('span', { className: 'code', textContent: fac.invite_code }),
+        el('button', { textContent: 'Copy', onclick: () => copy(fac.invite_code) }),
+        el('button', { textContent: 'New code', title: 'Old code stops working', onclick: async () => { if (await rpc('new_code', { p_kind: 'faction', p_id: fac.id }, 'New invite code made')) metaChanged(); } })));
+      box.append(el('p', { className: 'dim', textContent: 'The code also gets people onto this server if they are not on it yet.' }));
+      if (outInvites.length) {
+        box.append(el('h2', { textContent: 'Pending invites' }));
+        for (const i of outInvites) box.append(el('div', { className: 'mrow' }, el('span', { className: 'nm', textContent: uname(i.user_id) }), el('span', { className: 'dim', textContent: ago(i.created_at) }),
+          el('button', { textContent: 'Cancel', onclick: async () => { await sb.from('faction_invites').delete().eq('faction_id', fac.id).eq('user_id', i.user_id); metaChanged(); } })));
+      }
+    }
+    box.append(el('h2', { textContent: 'Members' }));
+    const order = { leader: 0, officer: 1, member: 2 };
+    for (const m of fmembers.filter(m => m.faction_id === fac.id).sort((a, b) => order[a.role] - order[b.role] || uname(a.user_id).localeCompare(uname(b.user_id)))) {
+      const r = el('div', { className: 'mrow' }, el('span', { className: 'nm', textContent: uname(m.user_id) + (m.user_id === me.id ? ' (you)' : '') }),
+        el('span', { className: 'badge' + (m.role === 'leader' ? ' lead' : ''), textContent: m.role }));
+      if (m.user_id !== me.id && myFacRole === 'leader') {
+        const s = el('select', { style: 'width:auto;padding:2px 4px;font-size:11px' }, ...['member', 'officer', 'leader'].map(v => el('option', { value: v, textContent: v })));
+        s.value = m.role;
+        s.onchange = async () => { const { error } = await sb.from('faction_members').update({ role: s.value }).eq('faction_id', fac.id).eq('user_id', m.user_id); if (error) toast(error.message); metaChanged(); };
+        r.append(s);
+      }
+      if (m.user_id !== me.id && (myFacRole === 'leader' || (myFacRole === 'officer' && m.role === 'member')))
+        r.append(el('button', { className: 'danger', textContent: 'Kick', onclick: async () => {
+          if (!confirm(`Remove ${uname(m.user_id)} from ${fac.name}?`)) return;
+          const { error } = await sb.from('faction_members').delete().eq('faction_id', fac.id).eq('user_id', m.user_id); if (error) toast(error.message); metaChanged();
+        } }));
+      box.append(r);
+    }
+    box.append(el('div', { className: 'formbtns' }, el('button', { className: 'danger', textContent: 'Leave faction', onclick: async () => {
+      if (!confirm(`Leave ${fac.name}? You'll lose access to its markers and crew notes.`)) return;
+      if (await rpc('leave_faction', { p_server: server.id }, 'You left the faction')) metaChanged();
+    } })));
+  }
+  const others = [...factions.values()].filter(f => f.id !== myFac);
+  if (others.length) {
+    box.append(el('h2', { textContent: 'Other factions on this server' }));
+    for (const f of others.sort((a, b) => a.name.localeCompare(b.name)))
+      box.append(el('div', { className: 'mrow' }, f.flag ? el('span', { className: 'miniflag', style: 'width:30px', innerHTML: flagSvg(f.flag) }) : el('span', { style: 'width:30px' }),
+        el('span', { className: 'nm', textContent: facLabel(f) }), el('span', { className: 'dim', textContent: fmembers.filter(m => m.faction_id === f.id).length + ' members' })));
+  }
+}
+
+// ---------- server tab ----------
+function renderServer() {
+  const box = $('paneServer'); box.replaceChildren();
+  if (loginPrompt(box, 'Servers, shared markers, notes and the API')) return;
+  const admin = isAdmin();
+  box.append(el('div', { className: 'card' }, el('h3', { textContent: server.name }),
+    el('div', { className: 'dim', textContent: `You are ${myRole} · ${smembers.length} players · ${factions.size} factions` }),
+    el('div', { className: 'row wrap', style: 'margin-top:8px' }, el('span', { className: 'dim', textContent: 'Join code:' }), el('span', { className: 'code', textContent: server.join_code }),
+      el('button', { textContent: 'Copy', onclick: () => copy(server.join_code) }),
+      admin ? el('button', { textContent: 'New code', onclick: async () => { const c = await rpc('new_code', { p_kind: 'server', p_id: server.id }, 'New join code made'); if (c) { server.join_code = c; renderServer(); } } }) : '')));
+  if (admin) {
+    const nm = el('input', { maxLength: 60, value: server.name });
+    const ms = el('select', {}, ...MAPS.map(m => el('option', { value: m.id, textContent: mapTitle(m) })));
+    ms.value = server.map;
+    box.append(el('details', {}, el('summary', { className: 'dim', textContent: 'Server settings' }),
+      el('label', { textContent: 'Server name' }), nm,
+      el('label', { textContent: 'Default map for players' }), ms,
+      el('div', { className: 'formbtns' }, el('button', { className: 'primary', textContent: 'Save', onclick: async () => {
+        const { error } = await sb.from('servers').update({ name: nm.value.trim(), map: ms.value }).eq('id', server.id);
+        if (error) return toast(error.message);
+        server.name = nm.value.trim(); const mapChanged = server.map !== ms.value; server.map = ms.value;
+        await loadServers(); toast('Saved');
+        if (mapChanged && confirm('Switch your own view to the new map now?')) switchMap(ms.value);
+      } }))));
+  }
+  box.append(el('h2', { textContent: 'Players' }));
+  for (const m of smembers.slice().sort((a, b) => ({ owner: 0, admin: 1, member: 2 })[a.role] - ({ owner: 0, admin: 1, member: 2 })[b.role] || uname(a.user_id).localeCompare(uname(b.user_id)))) {
+    const fm = fmembers.find(x => x.user_id === m.user_id), fac = fm && factions.get(fm.faction_id);
+    const r = el('div', { className: 'mrow' }, el('span', { className: 'nm', textContent: uname(m.user_id) + (m.user_id === me.id ? ' (you)' : '') }),
+      fac ? el('span', { className: 'dim', textContent: fac.tag ? '[' + fac.tag + ']' : fac.name }) : '',
+      el('span', { className: 'badge' + (m.role !== 'member' ? ' lead' : ''), textContent: m.role }));
+    if (myRole === 'owner' && m.role !== 'owner') {
+      const s = el('select', { style: 'width:auto;padding:2px 4px;font-size:11px' }, el('option', { value: 'member', textContent: 'member' }), el('option', { value: 'admin', textContent: 'admin' }));
+      s.value = m.role;
+      s.onchange = async () => { const { error } = await sb.from('server_members').update({ role: s.value }).eq('server_id', server.id).eq('user_id', m.user_id); if (error) toast(error.message); metaChanged(); };
+      r.append(s);
+    }
+    if (admin && m.role !== 'owner' && m.user_id !== me.id && !(myRole === 'admin' && m.role === 'admin'))
+      r.append(el('button', { className: 'danger', textContent: 'Kick', onclick: async () => {
+        if (!confirm(`Remove ${uname(m.user_id)} from this server?`)) return;
+        const { error } = await sb.from('server_members').delete().eq('server_id', server.id).eq('user_id', m.user_id); if (error) toast(error.message); metaChanged();
+      } }));
+    box.append(r);
+  }
+
+  // API keys
+  const canFacKey = myFac && (myFacRole === 'leader' || myFacRole === 'officer');
+  box.append(el('h2', {}, 'API access ', el('a', { href: 'api.html', target: '_blank', className: 'linkbtn', textContent: 'how to use it ↗' })));
+  if (!admin && !canFacKey) box.append(el('p', { className: 'dim', textContent: 'Server admins can make server-wide keys; faction leaders and officers can make keys for their faction. Keys let bots, Discord and other apps read (or write) the map.' }));
+  else {
+    const keysBox = el('div'); box.append(keysBox);
+    sb.from('api_keys').select('*').eq('server_id', server.id).then(({ data }) => {
+      for (const k of data || []) keysBox.append(el('div', { className: 'mrow' },
+        el('span', { className: 'nm', textContent: `${k.label || 'Key'} · ${k.prefix}…` }),
+        el('span', { className: 'dim', textContent: `${k.faction_id ? 'faction' : 'server'}${k.can_write ? ' · write' : ' · read'}${k.last_used ? ' · used ' + ago(k.last_used) : ''}` }),
+        el('button', { className: 'danger', textContent: 'Revoke', onclick: async () => { if (!confirm('Revoke this key? Apps using it stop working.')) return; await sb.from('api_keys').delete().eq('id', k.id); renderServer(); } })));
+    });
+    const label = el('input', { maxLength: 60, placeholder: 'Label, e.g. Discord bot' });
+    const scope = el('select', {}, admin ? el('option', { value: 'server', textContent: 'Server-wide (everything public)' }) : '', canFacKey ? el('option', { value: 'faction', textContent: `My faction (+ public)` }) : '');
+    const wr = el('input', { type: 'checkbox' });
+    const out = el('div');
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: 'New API key' }), label, el('div', { style: 'margin-top:6px' }, scope),
+      el('div', { className: 'checks', style: 'grid-template-columns:1fr;margin-top:6px' }, el('label', {}, wr, 'Allow it to add / edit / delete markers')),
+      el('div', { className: 'formbtns' }, el('button', { className: 'primary', textContent: 'Create key', onclick: async () => {
+        const k = await rpc('create_api_key', { p_server: server.id, p_faction: scope.value === 'faction' ? myFac : null, p_label: label.value, p_write: wr.checked });
+        if (!k) return;
+        out.replaceChildren(el('p', { className: 'dim', textContent: "Copy it now — it won't be shown again:" }), el('div', { className: 'keybox', textContent: k }), el('button', { textContent: 'Copy key', onclick: () => copy(k) }));
+      } })), out));
+  }
+
+  // import from v1
+  if (admin || myFac) {
+    const room = el('input', { maxLength: 40, placeholder: 'Old faction code' });
+    box.append(el('details', { style: 'margin-top:14px' }, el('summary', { className: 'dim', textContent: 'Import markers from the old version (faction code)' }),
+      el('p', { className: 'dim', textContent: 'Copies everything saved under an old faction code onto this map, shared with your faction.' }),
+      el('div', { className: 'row' }, room, el('button', { textContent: 'Import', onclick: async () => {
+        const code = room.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, ''); if (!code) return;
+        const { data, error } = await sb.from('map_features').select('data').eq('room', code);
+        if (error) return toast(error.message);
+        const arr = (data || []).map(r => r.data).filter(valid).filter(f => !feats.has(f.id));
+        if (!arr.length) return toast('Nothing new found under that code');
+        if (!confirm(`Import ${arr.length} marker(s) into ${server.name}?`)) return;
+        for (const f of arr) upsert({ ...f, $: { vis: myFac ? 'faction' : 'private', fac: myFac, owner: me.id } });
+        toast(`Imported ${arr.length}`);
+      } }))));
+  }
+
+  box.append(el('h2', { textContent: 'Account' }));
+  const np = el('input', { type: 'password', minLength: 6, placeholder: 'New password', autocomplete: 'new-password' });
+  box.append(el('div', { className: 'dim', textContent: `Logged in as ${me.username}` }),
+    el('div', { className: 'row', style: 'margin-top:6px' }, np, el('button', { textContent: 'Change', onclick: async () => {
+      if (np.value.length < 6) return toast('At least 6 characters');
+      const { error } = await sb.auth.updateUser({ password: np.value });
+      np.value = ''; toast(error ? error.message : 'Password changed');
+    } })),
+    el('div', { className: 'formbtns' },
+      el('button', { textContent: 'Log out', onclick: logout }),
+      myRole !== 'owner' ? el('button', { className: 'danger', textContent: 'Leave server', onclick: async () => {
+        if (!confirm(`Leave ${server.name}?`)) return;
+        if (await rpc('leave_server', { p_server: server.id }, 'Left server')) { await leftServer(); }
+      } }) : el('button', { className: 'danger', textContent: 'Delete server', onclick: async () => {
+        const n = prompt(`This deletes ${server.name} with ALL its factions, markers and notes for everyone. Type the server name to confirm:`);
+        if (n !== server.name) return;
+        const { error } = await sb.from('servers').delete().eq('id', server.id);
+        if (error) return toast(error.message);
+        await leftServer();
+      } })));
+}
+
+// ---------- export / import ----------
+$('btnExport').onclick = () => {
+  const blob = new Blob([JSON.stringify({ map: MAPDEF.id, exported: new Date().toISOString(), features: [...feats.values()].map(dataOf) }, null, 1)], { type: 'application/json' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: `faction-map-${MAPDEF.id}.json` });
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('btnImport').onclick = () => $('file').click();
+$('file').onchange = async () => {
+  const file = $('file').files[0]; $('file').value = '';
+  if (!file) return;
+  try {
+    const j = JSON.parse(await file.text());
+    const arr = (Array.isArray(j) ? j : j.features || []).filter(valid).filter(f => !feats.has(f.id));
+    if (!arr.length) return toast('No new markers found in that file');
+    if (!confirm(`Import ${arr.length} item(s)${ONLINE ? ' and share them with your faction' : ''}?`)) return;
+    for (const f of arr) upsert({ ...dataOf(f), name: String(f.name || '').slice(0, 60), notes: String(f.notes || '').slice(0, 1000), $: { vis: myFac ? 'faction' : 'private', fac: myFac, owner: me?.id } });
+    toast(`Imported ${arr.length}`);
+  } catch { toast('That file is not a valid map export'); }
+};
+
+$('search').oninput = renderResults;
+$('search').onfocus = renderResults;
+$('search').onkeydown = e => {
+  if (e.key === 'Enter') { e.preventDefault(); runResult(resultSel); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); moveSel(1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); moveSel(-1); }
+  else if (e.key === 'Escape') { e.stopPropagation(); $('results').classList.remove('show'); $('search').blur(); }
+};
+$('searchClear').onclick = () => { $('search').value = ''; renderResults(); $('search').focus(); };
+map.on('click movestart', () => $('results').classList.remove('show'));
+L.DomEvent.disableClickPropagation($('topsearch')); L.DomEvent.disableScrollPropagation($('topsearch'));
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); $('search').focus(); }
+});
+$('allOn').onclick = () => { hidden.clear(); ls.set('fm:hidden', []); renderAll(); };
+$('allOff').onclick = () => { hidden = new Set(CATS.map(c => c.id)); ls.set('fm:hidden', [...hidden]); renderAll(); };
+
+// ---------- start ----------
+buildStatic();
+buildRefUI(); applyRefs();
+$('refAll').onclick = () => { for (const r of REFS) refState[r.id] = true; buildRefUI(); applyRefs(); };
+$('refNone').onclick = () => { for (const r of REFS) refState[r.id] = false; buildRefUI(); applyRefs(); };
+$('tLabels').classList.toggle('on', labelsOn);
+if (ls.get('fm:grid', false)) { grid.addTo(map); $('tGrid').classList.add('on'); }
+refreshSide();
+// the GPS road graph takes ~1 s to build: do it in the background so the first GPS click is instant
+if (ROADS.length) setTimeout(() => (window.requestIdleCallback || (f => f()))(() => buildGraph(), { timeout: 4000 }), 2500);
+(async () => {
+  if (HAS_SB && window.supabase) {
+    sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey);
+    sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT' && me) location.reload(); });
+  } else if (HAS_SB) toast('Could not load the sync library, so logging in is unavailable. Check your connection or ad blocker.');
+  await startGuest();
+  if (!sb) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await afterLogin(session.user);
+})();
+setInterval(() => { if (!document.hidden && ONLINE && server && channel && channel.state === 'closed') { subscribe(); loadFeatures().catch(() => {}); } }, 30000);
+})();
+</script>
+</body>
+</html>

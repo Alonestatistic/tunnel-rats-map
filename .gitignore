@@ -1,0 +1,6 @@
+# build output from the old manual-upload flow
+site/
+site.zip
+# test logins, never commit
+test-accounts.json
+.claude/settings.local.json

@@ -1,0 +1,22 @@
+# Netlify deploys this folder as-is (no build step) on every push to main.
+[build]
+  publish = "."
+  command = ""
+
+# keep the database scripts and dev files off the live site
+[[redirects]]
+  from = "/db/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.claude/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
