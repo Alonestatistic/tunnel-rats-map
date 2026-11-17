@@ -133,6 +133,18 @@
   #tools { position: absolute; right: 10px; top: 84px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
   #tools button { background: var(--panel); font-size: 12px; box-shadow: 0 1px 5px #0006; }
   #tools button.on { background: var(--accent); }
+  #actBadge:not(:empty) { display: inline-block; margin-left: 5px; min-width: 16px; padding: 0 4px; border-radius: 99px; background: #ff5b52; color: #fff; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center; }
+  #act { position: absolute; right: 110px; top: 130px; z-index: 1001; width: 290px; max-height: min(70vh, 520px); display: none; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px #000c; font-size: 12.5px; }
+  #act.show { display: flex; }
+  #act .ah { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  #actList { overflow-y: auto; padding: 4px; }
+  #actList .ai { display: flex; gap: 8px; padding: 6px; border-radius: 7px; cursor: pointer; align-items: flex-start; }
+  #actList .ai:hover { background: var(--panel2); }
+  #actList .ai.new { box-shadow: inset 3px 0 0 #ff5b52; }
+  #actList .ai .ic { font-size: 16px; line-height: 1.2; }
+  #actList .ai .tx { flex: 1; min-width: 0; }
+  #actList .ai .tx div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #actList .ai .q { color: var(--dim); font-style: italic; }
   #tools #tNav.on { background: var(--gps); border-color: var(--gps); color: #001; }
   #ctx { position: absolute; z-index: 1500; display: none; width: 250px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 5px; box-shadow: 0 8px 28px #000c; font-size: 13px; }
   #ctx .ch { padding: 6px 9px 5px; border-left: 3px solid var(--c, var(--accent)); margin: 2px 2px 0; border-radius: 3px; }
@@ -424,7 +436,9 @@
     <button id="tLabels" class="on">Labels</button>
     <button id="tGrid">Grid</button>
     <button id="tMeasure">Measure</button>
+    <button id="tAct" title="What changed recently">🔔 Activity<span id="actBadge"></span></button>
   </div>
+  <div id="act"><div class="ah"><b>Recent activity</b><button id="actClose" class="linkbtn" aria-label="Close">✕</button></div><div id="actList"></div></div>
   <div id="selbar" class="bar"><span id="selText"></span><button id="selRoute" class="primary">Make route</button><button id="selClear">Clear</button></div>
   <div id="navbar" class="bar"><span id="navText"></span><button id="navSwap">⇄ Swap</button><button id="navSave" class="primary">Save as route</button><button id="navClear">Clear</button></div>
   <div id="coords">– / –</div>
@@ -1474,8 +1488,52 @@ function setShape(s) {
   shape = s; ls.set('fm:shape', s);
   for (const b of $('shapeSeg').children) b.classList.toggle('on', b.dataset.shape === s);
 }
+// ---------- recent activity: latest edits and notes, newest first; red badge = changes by others since you last looked ----------
+let actSeen = ls.get('fm:actSeen', Date.now());
+function activity() {
+  const out = [];
+  for (const f of feats.values()) {
+    if (!f.updated || !shown(f)) continue;
+    out.push({ ts: f.updated, f, mine: !ONLINE || f.$?.owner === me?.id, who: f.author && f.author !== 'unknown' ? f.author : (ONLINE ? uname(f.$?.owner) : 'You'), kind: 'edit' });
+  }
+  for (const n of notes.values()) {
+    const f = feats.get(n.feature_id); if (!f) continue;
+    out.push({ ts: Date.parse(n.created_at) || 0, f, n, mine: n.author === me?.id, who: uname(n.author), kind: 'note' });
+  }
+  return out.sort((a, b) => b.ts - a.ts).slice(0, 40);
+}
+let actT = null;
+function refreshAct() {
+  clearTimeout(actT);
+  actT = setTimeout(() => {
+    const items = activity(), fresh = items.filter(a => !a.mine && a.ts > actSeen).length;
+    $('actBadge').textContent = fresh ? (fresh > 9 ? '9+' : fresh) : '';
+    if (!$('act').classList.contains('show')) return;
+    const box = $('actList'); box.replaceChildren();
+    if (!items.length) box.append(el('div', { className: 'dim', style: 'padding:10px', textContent: 'Nothing yet. Edits and notes show up here.' }));
+    for (const a of items) {
+      const line2 = a.kind === 'note'
+        ? el('div', { className: 'q', textContent: `“${a.n.body.slice(0, 80)}”` })
+        : el('div', { className: 'dim', textContent: catOf(a.f).name });
+      box.append(el('div', { className: 'ai' + (!a.mine && a.ts > actSeen ? ' new' : ''), title: new Date(a.ts).toLocaleString(), onclick: () => { zoomTo(a.f); openInfo(a.f.id); } },
+        el('span', { className: 'ic', textContent: a.kind === 'note' ? '💬' : catOf(a.f).icon }),
+        el('div', { className: 'tx' },
+          el('div', {}, el('b', { textContent: a.who }), a.kind === 'note' ? ' noted on ' : ' updated ', el('b', { textContent: featTitle(a.f) })),
+          line2),
+        el('span', { className: 'dim', style: 'white-space:nowrap', textContent: ago(a.ts) })));
+    }
+  }, 150);
+}
+$('tAct').onclick = () => {
+  const on = !$('act').classList.contains('show');
+  $('act').classList.toggle('show', on); $('tAct').classList.toggle('on', on);
+  if (on) { refreshAct(); setTimeout(() => { actSeen = Date.now(); ls.set('fm:actSeen', actSeen); }, 200); }
+  else refreshAct();
+};
+$('actClose').onclick = () => $('tAct').click();
+L.DomEvent.disableClickPropagation($('act')); L.DomEvent.disableScrollPropagation($('act'));
 function refreshSide() {
-  renderQF();
+  renderQF(); refreshAct();
   const counts = {};
   for (const f of feats.values()) counts[catOf(f).id] = (counts[catOf(f).id] || 0) + 1;
   const fl = $('filters'); fl.replaceChildren();
