@@ -266,6 +266,10 @@
 
   .modal { position: fixed; inset: 0; z-index: 3000; background: #000c; display: none; place-items: center; padding: 16px; overflow-y: auto; }
   .modal.show { display: grid; }
+  .kgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+  .kgrid p { color: var(--text); margin: 5px 0 0; }
+  @media (max-width: 560px) { .kgrid { grid-template-columns: 1fr; } }
+  kbd { display: inline-block; min-width: 18px; padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--panel2); font: 600 11px/17px ui-monospace, monospace; text-align: center; color: var(--text); }
   .modal .box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; width: 380px; max-width: 100%; }
   .modal h2 { font-size: 19px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 4px; }
   .modal h3 { font-size: 13px; margin: 18px 0 4px; color: var(--accent); }
@@ -462,6 +466,7 @@
     <button id="tGrid">Grid</button>
     <button id="tMeasure">Measure</button>
     <button id="tAct" title="What changed recently">🔔 Activity<span id="actBadge"></span></button>
+    <button id="tKeys" title="Keyboard shortcuts (?)">⌨️ Keys</button>
   </div>
   <div id="announce" role="status"><span class="ai">📌</span><div class="at"><div id="annText"></div><div id="annMeta" class="dim"></div></div><button id="annClose" title="Hide until it changes" aria-label="Hide">✕</button></div>
   <div id="miniWrap"><div id="mini"></div><button id="miniToggle" title="Hide the minimap">▾</button></div>
@@ -483,6 +488,41 @@
   </div>
 </div>
 
+<div id="keys" class="modal">
+  <div class="box" style="width:560px">
+    <div style="display:flex;align-items:center;justify-content:space-between"><h2>Keyboard shortcuts</h2><button id="keysClose" class="linkbtn" aria-label="Close">✕</button></div>
+    <div class="kgrid">
+      <div><h3>Map</h3>
+        <p><kbd>/</kbd> Search</p>
+        <p><kbd>1</kbd>…<kbd>9</kbd> Jump to a saved spot</p>
+        <p><kbd>Shift</kbd>+<kbd>1</kbd>…<kbd>9</kbd> Save this view</p>
+        <p><kbd>G</kbd> GPS · <kbd>M</kbd> Measure</p>
+        <p><kbd>L</kbd> Labels · <kbd>R</kbd> Grid</p>
+        <p><kbd>A</kbd> Activity · <kbd>N</kbd> Menu</p>
+        <p>Right-click: everything you can do here</p>
+      </div>
+      <div><h3>Drawing</h3>
+        <p>Click corners · right-click, <kbd>Enter</kbd> or Done to finish</p>
+        <p><kbd>Shift</kbd>-drag: draw a box</p>
+        <p><kbd>Alt</kbd>: place without snapping</p>
+        <p>Drag corners · click the small dots to add one</p>
+        <p><kbd>Esc</kbd> Cancel</p>
+      </div>
+      <div><h3>Editing</h3>
+        <p><kbd>Backspace</kbd> / <kbd>Ctrl</kbd>+<kbd>Z</kbd> Undo</p>
+        <p><kbd>Shift</kbd>+<kbd>Backspace</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> Redo</p>
+        <p><kbd>Delete</kbd> Delete the open item or selection</p>
+      </div>
+      <div><h3>Selecting</h3>
+        <p><kbd>Shift</kbd>/<kbd>Ctrl</kbd>-click items to select</p>
+        <p><kbd>Shift</kbd>-drag on the map: box select</p>
+        <p><kbd>Ctrl</kbd>+<kbd>C</kbd> Copy · <kbd>Ctrl</kbd>+<kbd>V</kbd> Paste at the mouse</p>
+        <p><kbd>Esc</kbd> Clear the selection</p>
+      </div>
+    </div>
+    <p style="margin-top:14px">Press <kbd>?</kbd> any time to open this.</p>
+  </div>
+</div>
 <div id="auth" class="modal">
   <form id="authForm" class="box">
     <h2 id="authTitle">Log in</h2>
@@ -2238,6 +2278,7 @@ map.on('contextmenu', e => {
 map.on('click movestart zoomstart', closeCtx);
 document.addEventListener('mousedown', e => { if (!$('ctx').contains(e.target)) closeCtx(); }, true);
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('keys').classList.contains('show')) { $('keys').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('auth').classList.contains('show')) { $('auth').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('srvpick').classList.contains('show')) { $('srvpick').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('ctx').style.display === 'block') { closeCtx(); return; }
@@ -2248,6 +2289,13 @@ document.addEventListener('keydown', e => {
   if (typing) return;
   const formOpen = $('form').classList.contains('show');
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  // ? opens the shortcut sheet; single letters toggle tools
+  if (e.key === '?') { e.preventDefault(); $('keys').classList.add('show'); return; }
+  if (!mod && !e.altKey && !e.shiftKey && !formOpen && !document.querySelector('.modal.show')) {
+    const btn = { g: 'tNav', m: 'tMeasure', l: 'tLabels', r: 'tGrid', a: 'tAct' }[k];
+    if (btn) { e.preventDefault(); $(btn).click(); return; }
+    if (k === 'n') { e.preventDefault(); document.body.classList.toggle('open'); return; }
+  }
   // Ctrl+C / Ctrl+V: copy the selection (or the open item), paste where the mouse is
   if (mod && k === 'c' && !tool && !formOpen && (sel.size || infoId) && !getSelection().toString()) { e.preventDefault(); copyItems(sel.size ? [...sel] : [infoId]); return; }
   if (mod && k === 'v' && !tool && !formOpen) {
@@ -2291,6 +2339,9 @@ $('tMeasure').onclick = () => {
 $('tGrid').onclick = () => { const on = !map.hasLayer(grid); on ? grid.addTo(map) : grid.remove(); $('tGrid').classList.toggle('on', on); ls.set('fm:grid', on); };
 $('tLabels').onclick = () => { labelsOn = !labelsOn; ls.set('fm:labels', labelsOn); $('tLabels').classList.toggle('on', labelsOn); renderAll(); };
 $('menu').onclick = () => document.body.classList.toggle('open');
+$('tKeys').onclick = () => $('keys').classList.add('show');
+$('keysClose').onclick = () => $('keys').classList.remove('show');
+$('keys').onclick = e => { if (e.target === $('keys')) $('keys').classList.remove('show'); };
 map.on('click', () => { if (!tool) document.body.classList.remove('open'); });
 
 // ---------- GPS: road navigation between two points ----------
