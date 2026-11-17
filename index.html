@@ -140,6 +140,18 @@
   #ctx .k { margin-left: auto; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
   #ctx hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
   #ctx .cl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); padding: 3px 9px 2px; }
+  #hov { position: absolute; z-index: 1450; display: none; pointer-events: none; width: 250px; }
+  .hc { background: var(--panel); border: 1px solid color-mix(in srgb, var(--c) 55%, var(--line)); border-radius: 10px; padding: 9px 11px; box-shadow: 0 6px 22px #000c, 0 0 14px color-mix(in srgb, var(--c) 30%, transparent); font-size: 12.5px; }
+  .hc .hh { display: flex; gap: 8px; align-items: center; }
+  .hc .hf { width: 40px; flex: none; }
+  .hc b { font-size: 13.5px; }
+  .hc dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; margin: 7px 0 0; }
+  .hc dt { color: var(--dim); } .hc dd { margin: 0; }
+  .hc .hn { margin-top: 6px; white-space: pre-wrap; word-break: break-word; }
+  .hc .hn.note { margin-top: 6px; }
+  .hc .hf2 { margin-top: 6px; font-size: 11px; }
+  .hc .fuel { height: 5px; background: #ffffff14; border-radius: 9px; margin-top: 7px; overflow: hidden; }
+  .hc .fuel span { display: block; height: 100%; }
   .vh { width: 12px; height: 12px; margin: 2px; border-radius: 3px; background: #fff; border: 2px solid #111; box-shadow: 0 0 0 2px #e0a13a88, 0 1px 4px #000; cursor: grab; }
   .vh:hover { transform: scale(1.25); }
   .vh.sel { background: var(--accent); box-shadow: 0 0 0 3px #fff, 0 0 8px var(--accent); }
@@ -345,7 +357,7 @@
         <h2>Settings</h2>
         <label for="zoomSpeed" style="margin-top:0">Scroll zoom speed: <span id="zoomSpeedVal"></span></label>
         <input id="zoomSpeed" type="range" min="0.25" max="4" step="0.25">
-        <div class="checks" style="grid-template-columns:1fr;margin-top:8px"><label><input type="checkbox" id="trToggle"> Show English meanings of place names</label></div>
+        <div class="checks" style="grid-template-columns:1fr;margin-top:8px"><label><input type="checkbox" id="trToggle"> Show English meanings of place names</label><label><input type="checkbox" id="hovToggle"> Preview cards when hovering markers</label></div>
 
         <h2>Marker list</h2>
         <div id="list"></div>
@@ -381,6 +393,7 @@
   <div id="navbar" class="bar"><span id="navText"></span><button id="navSwap">⇄ Swap</button><button id="navSave" class="primary">Save as route</button><button id="navClear">Clear</button></div>
   <div id="coords">– / –</div>
   <div id="ctx" role="menu"></div>
+  <div id="hov" aria-hidden="true"></div>
 </div>
 
 <div id="auth" class="modal">
@@ -971,10 +984,59 @@ function buildLayer(f, isDraft) {
   }
   else if (f.kind === 'route') layer = routeLayer(f);
   else layer = buildZone(f, isDraft);
+  if (!isDraft) {
+    layer.on('mouseover', e => hoverShow(f.id, e));
+    layer.on('mousemove', hoverMove);
+    layer.on('mouseout', hoverHide);
+  }
   if (!isDraft) layer.on('contextmenu', e => { L.DomEvent.stopPropagation(e); L.DomEvent.preventDefault(e.originalEvent); if (!tool) openCtx(e, f.id); });
   if (!isDraft) layer.on('click', e => { L.DomEvent.stop(e); if (tool) { map.fire('click', { latlng: e.latlng, originalEvent: e.originalEvent }); return; } openInfo(f.id); });
   return layer;
 }
+// ---------- hover preview card ----------
+let hovT = null, hovId = null;
+function hoverCard(f) {
+  const m = f.$ || {}, c = colorOf(f), fac = m.fac && factions.get(m.fac);
+  const box = el('div', { className: 'hc', style: `--c:${c}` });
+  const head = el('div', { className: 'hh' });
+  if (f.flag && FLAG[f.flag]) head.append(el('div', { className: 'hf', innerHTML: flagSvg(f.flag) }));
+  head.append(el('div', {}, el('b', { textContent: `${catOf(f).icon} ${featTitle(f)}` }),
+    el('div', { className: 'dim', textContent: [catOf(f).name, isZone(f) ? fmtArea(areaOf(f)) : '', f.kind === 'route' ? fmtDist(routeLen(f.points)) : ''].filter(Boolean).join(' · ') })));
+  box.append(head);
+  const rows = [];
+  if (ONLINE && fac) rows.push(['Faction', facLabel(fac)]);
+  for (const fd of FIELDS[f.cat] || []) { const t = fieldText(fd, (f.d || {})[fd.k]); if (t) rows.push([fd.l, t]); }
+  if (f.cat === 'vehicle' && f.d?.fuel != null) {
+    const fuel = f.d.fuel;
+    box.append(el('div', { className: 'fuel' }, el('span', { style: `width:${fuel}%;background:${fuel < 25 ? 'var(--danger)' : fuel < 60 ? 'var(--accent)' : 'var(--ok)'}` })));
+  }
+  const kids = ['base', 'territory', 'ally', 'enemy'].includes(f.cat) ? compoundsOf(f.id).length : 0;
+  if (kids) rows.push(['Compounds', kids]);
+  if (rows.length) { const dl = el('dl'); for (const [k, v] of rows.slice(0, 6)) dl.append(el('dt', { textContent: k }), el('dd', { textContent: v })); box.append(dl); }
+  if (f.notes) box.append(el('div', { className: 'hn', textContent: f.notes.length > 140 ? f.notes.slice(0, 140) + '…' : f.notes }));
+  const ns = [...notes.values()].filter(n => n.feature_id === f.id).sort((a, b) => a.created_at < b.created_at ? 1 : -1);
+  if (ns.length) box.append(el('div', { className: 'hn note ' + ns[0].vis }, el('b', { textContent: uname(ns[0].author) + ': ' }),
+    ns[0].body.length > 120 ? ns[0].body.slice(0, 120) + '…' : ns[0].body, ns.length > 1 ? el('span', { className: 'dim', textContent: ` (+${ns.length - 1} more)` }) : ''));
+  box.append(el('div', { className: 'dim hf2', textContent: `Updated ${ago(f.updated || 0)}${f.author ? ' by ' + f.author : ''} · click for details` }));
+  return box;
+}
+function hoverShow(id, e) {
+  if (tool || $('ctx').style.display === 'block' || ls.get('fm:hover', true) === false) return;
+  clearTimeout(hovT); hovId = id;
+  hovT = setTimeout(() => {
+    const f = feats.get(id); if (!f || hovId !== id) return;
+    $('hov').replaceChildren(hoverCard(f)); $('hov').style.display = 'block'; hoverMove(e);
+  }, 260);
+}
+function hoverMove(e) {
+  const h = $('hov'); if (h.style.display !== 'block' || !e?.containerPoint) return;
+  const W0 = $('mapwrap').clientWidth, H0 = $('mapwrap').clientHeight, p = e.containerPoint;
+  const x = p.x + 18 + h.offsetWidth > W0 ? p.x - 18 - h.offsetWidth : p.x + 18;
+  const y = Math.max(8, Math.min(p.y - 20, H0 - h.offsetHeight - 8));
+  h.style.left = Math.max(8, x) + 'px'; h.style.top = y + 'px';
+}
+function hoverHide() { clearTimeout(hovT); hovId = null; $('hov').style.display = 'none'; }
+map.on('movestart zoomstart click contextmenu', hoverHide);
 function routeLayer(f) {
   const c = colorOf(f), pts = f.points, lls = pts.map(ll), op = Math.max(.15, opOf(f));
   const glow = L.polyline(lls, { color: c, weight: 10, opacity: .6 * op, className: 'ov-glow', interactive: false });
@@ -1967,6 +2029,8 @@ $('zoomSpeed').oninput = e => setZoomSpeed(e.target.value);
 setZoomSpeed(ls.get('fm:zoom', 1));
 $('trToggle').checked = showTr;
 $('trToggle').onchange = e => { showTr = e.target.checked; ls.set('fm:tr', showTr); refLayer.draw(); };
+$('hovToggle').checked = ls.get('fm:hover', true) !== false;
+$('hovToggle').onchange = e => { ls.set('fm:hover', e.target.checked); hoverHide(); };
 $('mapSel').onchange = () => switchMap($('mapSel').value);
 function switchMap(id) {
   if (id === MAPDEF.id) return;
