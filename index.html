@@ -425,6 +425,7 @@
     <button type="button" id="mselMove" title="Then drag anywhere on the map">✥ Move</button>
     <label class="selc" title="Recolour them all">🎨 Colour<input type="color" id="mselColor" value="#e2a93b"></label>
     <select id="mselVis" title="Who can see them"><option value="">👁 Visibility…</option><option value="private">Only me</option><option value="faction">My faction</option><option value="server">Whole server</option></select>
+    <button type="button" id="mselCopy" title="Ctrl+C, then Ctrl+V or right-click → Paste here">📄 Copy</button>
     <button type="button" id="mselDel" class="danger">🗑 Delete</button>
     <button type="button" id="mselClear" title="Clear selection (Esc)">✕</button>
   </div>
@@ -1656,9 +1657,58 @@ $('map').addEventListener('mousedown', ev => {
 let selLayer = null, selOff = [0, 0], selHinted = false;
 function shifted(f, dx, dz) {
   const c = clone(f);
-  if (c.points) c.points = c.points.map(([x, z]) => [clampW(x + dx), clampW(z + dz)]);
-  if (c.pos) c.pos = [clampW(c.pos[0] + dx), clampW(c.pos[1] + dz)];
+  const sh = q => [clampW(q[0] + dx), clampW(q[1] + dz), ...q.slice(2)];   // keep route waypoint names
+  if (c.points) c.points = c.points.map(sh);
+  if (c.pos) c.pos = sh(c.pos);
   return c;
+}
+// ---------- copy / paste (Ctrl+C / Ctrl+V or right-click → Paste here) and templates ----------
+let lastMouse = null;
+map.on('mousemove', e => { lastMouse = [clampW(Math.round(e.latlng.lng)), clampW(Math.round(e.latlng.lat))]; });
+// bases bring their compounds along
+function clipItems(ids) {
+  const set = new Set(ids);
+  for (const id of ids) for (const c of compoundsOf(id)) set.add(c.id);
+  return [...set].map(id => feats.get(id)).filter(Boolean).map(f => clone(dataOf(f)));
+}
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+function copyItems(ids) {
+  const items = clipItems(ids);
+  if (!items.length) return toast('Select something first (Shift-click or Shift-drag)');
+  ls.set('fm:clip', items);
+  toast(`Copied ${plural(items.length, 'item')} · Ctrl+V or right-click → Paste here`);
+}
+function groupCenter(items) {
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  for (const f of items) for (const p of f.points || [f.pos]) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+  return [(x0 + x1) / 2, (z0 + z1) / 2];
+}
+// place copies of items so their middle lands on `at`; new ids, compounds stay with their pasted base
+function stamp(items, at, label) {
+  if (!items?.length) return;
+  closeForm(true); cancelTool(); closeCtx();
+  const [cx, cz] = groupCenter(items), dx = Math.round(at[0] - cx), dz = Math.round(at[1] - cz);
+  const idMap = new Map(items.map(f => [f.id, crypto.randomUUID()])), made = [];
+  histBatch(label, () => {
+    for (const f0 of items) {
+      const c = shifted(f0, dx, dz);
+      c.id = idMap.get(f0.id);
+      if (c.cat === 'compound') {
+        if (c.parent && idMap.has(c.parent)) c.parent = idMap.get(c.parent);
+        else { if (c.parent && !feats.has(c.parent)) delete c.parent; c.num = nextCompoundNum(c.parent || null); }
+      }
+      c.author = me?.username || 'unknown'; c.updated = Date.now();
+      c.$ = { vis: defaultVis(c.cat), fac: myFac, owner: me?.id };
+      upsert(c); made.push(c.id);
+    }
+  });
+  sel.clear(); for (const id of made) sel.add(id); drawSel();
+  toast(`${label} · Backspace to undo`);
+}
+function pasteAt(p) {
+  const items = ls.get('fm:clip', []);
+  if (!items.length) return toast('Nothing copied yet: select items and press Ctrl+C');
+  stamp(items, p, `Pasted ${plural(items.length, 'item')}`);
 }
 function drawSel() {
   selLayer?.remove(); selLayer = null;
@@ -1761,6 +1811,7 @@ $('mselVis').onchange = e => {
   bulkChange(`set to ${({ private: 'only me', faction: 'my faction', server: 'whole server' })[v]}`, f => { f.$ = { ...(f.$ || {}), vis: v, fac: v === 'private' ? f.$?.fac : (f.$?.fac || myFac) }; });
 };
 $('mselDel').onclick = bulkDelete;
+$('mselCopy').onclick = () => copyItems([...sel]);
 $('mselClear').onclick = clearSel;
 L.DomEvent.disableClickPropagation($('mselbar'));
 function finishPoly() {
@@ -1874,7 +1925,8 @@ function openCtx(e, featId) {
       ctxItem('ℹ️', 'Open info & notes', () => openInfo(f.id)),
       ctxItem('✏️', 'Edit', () => startEdit(f.id), { disabled: !ed, title: ed ? '' : "You can't edit this one" }),
       f.kind !== 'route' ? ctxItem('↔️', f.kind === 'polygon' ? 'Redraw outline' : 'Move', () => { startEdit(f.id); $('fMove').click(); }, { disabled: !ed }) : '',
-      ctxItem('🗐', 'Duplicate', () => duplicate(f.id)));
+      ctxItem('🗐', 'Duplicate', () => duplicate(f.id)),
+      ctxItem('📄', sel.size > 1 && sel.has(f.id) ? `Copy ${sel.size} selected` : 'Copy', () => { closeCtx(); copyItems(sel.size > 1 && sel.has(f.id) ? [...sel] : [f.id]); }, { hint: 'Ctrl+C' }));
     if (['base', 'territory', 'ally', 'enemy'].includes(f.cat))
       box.append(ctxItem('🏚️', `Add compound - ${nextCompoundNum(f.id)}`, () => startCompound(f.id)));
     box.append(hr(),
@@ -1888,6 +1940,8 @@ function openCtx(e, featId) {
     const here = [...feats.values()].filter(x => shown(x) && isZone(x) && inside(x, p));
     box.append(el('div', { className: 'ch' }, el('b', { textContent: fmt(p) }), el('div', { className: 'dim', textContent: placeInfo(p) })));
     for (const x of here.slice(0, 4)) box.append(ctxItem(catOf(x).icon, `Inside ${featTitle(x)}`, () => openInfo(x.id)));
+    const clip = ls.get('fm:clip', []);
+    if (clip.length) box.append(ctxItem('📋', `Paste ${plural(clip.length, 'item')} here`, () => pasteAt(p), { hint: 'Ctrl+V' }));
     // start an area: pick a type, the outline starts where you right-clicked
     const shapeBtn = (v, t) => el('button', { type: 'button', className: areaShape === v ? 'on' : '', textContent: t, onclick: ev => {
       areaShape = v; ls.set('fm:areaShape', v);
@@ -1941,8 +1995,15 @@ document.addEventListener('keydown', e => {
     || $('auth').classList.contains('show') || $('srvpick').classList.contains('show');
   if (typing) return;
   const formOpen = $('form').classList.contains('show');
-  // Shift+Backspace / Ctrl+Y / Ctrl+Shift+Z: redo
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  // Ctrl+C / Ctrl+V: copy the selection (or the open item), paste where the mouse is
+  if (mod && k === 'c' && !tool && !formOpen && (sel.size || infoId) && !getSelection().toString()) { e.preventDefault(); copyItems(sel.size ? [...sel] : [infoId]); return; }
+  if (mod && k === 'v' && !tool && !formOpen) {
+    e.preventDefault();
+    const c = map.getCenter();
+    pasteAt(lastMouse || [Math.round(c.lng), Math.round(c.lat)]); return;
+  }
+  // Shift+Backspace / Ctrl+Y / Ctrl+Shift+Z: redo
   if ((e.key === 'Backspace' && e.shiftKey) || (mod && (k === 'y' || (k === 'z' && e.shiftKey)))) {
     e.preventDefault();
     if (tool === 'poly') { if (polyRedo.length) { polyPts.push(polyRedo.pop()); drawPolyPreview(); } else toast('Nothing to redo'); return; }
