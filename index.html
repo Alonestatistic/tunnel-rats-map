@@ -140,6 +140,13 @@
   #ctx .k { margin-left: auto; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
   #ctx hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
   #ctx .cl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); padding: 3px 9px 2px; }
+  .vh { width: 12px; height: 12px; margin: 2px; border-radius: 3px; background: #fff; border: 2px solid #111; box-shadow: 0 0 0 2px #e0a13a88, 0 1px 4px #000; cursor: grab; }
+  .vh:hover { transform: scale(1.25); }
+  .vh.sel { background: var(--accent); box-shadow: 0 0 0 3px #fff, 0 0 8px var(--accent); }
+  .vh.mid { width: 9px; height: 9px; margin: 3.5px; border-radius: 50%; opacity: .8; box-shadow: 0 1px 3px #000; }
+  .vh.first { background: #56e07a; cursor: pointer; }
+  .vh.ctr { border-radius: 50%; background: var(--accent); }
+  .vh.rad { border-radius: 50%; cursor: ew-resize; }
   #ctx .cl { display: flex; align-items: center; }
   #ctx .cs { margin-left: auto; display: flex; gap: 2px; }
   #ctx .cs button { font-size: 10.5px; text-transform: none; letter-spacing: 0; padding: 1px 7px; border-radius: 99px; background: none; color: var(--dim); }
@@ -247,6 +254,7 @@
   <div id="scroll">
     <div id="form">
       <h2 id="formTitle">New marker</h2>
+      <div class="dim" id="fTip" style="margin:-4px 0 6px"></div>
       <label for="fName">Name</label>
       <input id="fName" maxlength="60" autocomplete="off">
       <div id="fCatWrap">
@@ -996,10 +1004,93 @@ function renderFeature(id) {
 }
 function renderAll() { for (const id of new Set([...layers.keys(), ...feats.keys()])) renderFeature(id); refreshSide(); }
 function renderDraft() {
+  drawDraftShape();
+  renderHandles();
+}
+function drawDraftShape() {
   draftLayer?.remove(); draftLayer = null;
   if (draft && draft.kind === 'route') { renderRouteEdit(); return; }
   clearRouteEdit();
   if (draft && (draft.pos || (draft.points && draft.points.length >= 3))) draftLayer = buildLayer(draft, true).addTo(map);
+}
+
+// ---------- edit handles: drag corners, drag the small dots to add a corner ----------
+let handles = null, vSel = -1, draftHist = [];
+const vIcon = (cls) => L.divIcon({ className: '', iconSize: [16, 16], iconAnchor: [8, 8], html: `<div class="vh ${cls || ''}"></div>` });
+function snapDraft() { return JSON.stringify({ points: draft.points, pos: draft.pos, radius: draft.radius }); }
+function pushDraftHist() { if (!draft) return; draftHist.push(snapDraft()); if (draftHist.length > 200) draftHist.shift(); }
+function setFromLL(q, c) { q[0] = clampW(Math.round(c.lng)); q[1] = clampW(Math.round(c.lat)); }
+function removeVertex(i) {
+  if (!draft?.points) return;
+  if (draft.points.length <= 3) return toast('An area needs at least 3 corners');
+  pushDraftHist(); draft.points.splice(i, 1); vSel = -1; renderDraft();
+}
+function renderHandles() {
+  handles?.remove(); handles = null;
+  if (!draft || draft.kind === 'route' || tool === 'poly' || tool === 'place') return;
+  const g = handles = L.layerGroup().addTo(map);
+  if (draft.kind === 'polygon' && draft.points?.length >= 3) {
+    const pts = draft.points;
+    pts.forEach((q, i) => {
+      const r = pts[(i + 1) % pts.length], mid = [(q[0] + r[0]) / 2, (q[1] + r[1]) / 2];
+      const m = L.marker(ll(mid), { draggable: true, keyboard: false, zIndexOffset: 1400, icon: vIcon('mid'), title: 'Drag or click to add a corner' }).addTo(g);
+      let at = -1;
+      m.on('dragstart', () => { pushDraftHist(); at = i + 1; pts.splice(at, 0, [Math.round(mid[0]), Math.round(mid[1])]); vSel = at; });
+      m.on('drag', () => { setFromLL(pts[at], m.getLatLng()); drawDraftShape(); });
+      m.on('dragend', renderDraft);
+      m.on('click', e => { L.DomEvent.stop(e); pushDraftHist(); pts.splice(i + 1, 0, [Math.round(mid[0]), Math.round(mid[1])]); vSel = i + 1; renderDraft(); });
+    });
+    pts.forEach((q, i) => {
+      const m = L.marker(ll(q), { draggable: true, keyboard: false, zIndexOffset: 1500, icon: vIcon(i === vSel ? 'sel' : ''), title: 'Drag to move · right-click or Delete to remove' }).addTo(g);
+      m.on('dragstart', () => { pushDraftHist(); vSel = i; });
+      m.on('drag', () => { setFromLL(q, m.getLatLng()); drawDraftShape(); });
+      m.on('dragend', renderDraft);
+      m.on('click', e => { L.DomEvent.stop(e); vSel = i; renderHandles(); });
+      m.on('contextmenu', e => { L.DomEvent.stopPropagation(e); L.DomEvent.preventDefault(e.originalEvent); removeVertex(i); });
+    });
+  } else if (draft.pos) {
+    const c = L.marker(ll(draft.pos), { draggable: true, keyboard: false, zIndexOffset: 1500, icon: vIcon('ctr'), title: 'Drag to move' }).addTo(g);
+    let rh = null;
+    const rpos = () => ll([clampW(draft.pos[0] + (draft.radius || 0)), draft.pos[1]]);
+    c.on('dragstart', () => pushDraftHist());
+    c.on('drag', () => { setFromLL(draft.pos, c.getLatLng()); rh?.setLatLng(rpos()); drawDraftShape(); });
+    c.on('dragend', renderDraft);
+    if (draft.kind === 'circle') {
+      rh = L.marker(rpos(), { draggable: true, keyboard: false, zIndexOffset: 1500, icon: vIcon('rad'), title: 'Drag to resize' }).addTo(g);
+      rh.on('dragstart', () => pushDraftHist());
+      rh.on('drag', () => {
+        const p = rh.getLatLng(); draft.radius = Math.max(10, Math.min(8000, Math.round(Math.hypot(p.lng - draft.pos[0], p.lat - draft.pos[1]))));
+        $('fRadius').value = draft.radius; drawDraftShape();
+      });
+      rh.on('dragend', renderDraft);
+    }
+  }
+}
+function undoDraft() {
+  const s = draftHist.pop(); if (!s || !draft) return false;
+  const o = JSON.parse(s);
+  if (o.points) draft.points = o.points; if (o.pos) draft.pos = o.pos; if (o.radius) { draft.radius = o.radius; $('fRadius').value = o.radius; }
+  vSel = -1; renderDraft(); return true;
+}
+
+// ---------- undo of saved changes (Backspace / Ctrl+Z) ----------
+const undoStack = [];
+const clone = o => o ? JSON.parse(JSON.stringify(o)) : null;
+function record(before, after) { undoStack.push({ before: clone(before), after: clone(after) }); if (undoStack.length > 100) undoStack.shift(); }
+function undoSaved() {
+  const h = undoStack.pop();
+  if (!h) { toast('Nothing to undo'); return; }
+  if (!h.before) {   // it was created: remove it
+    const id = h.after.id;
+    removeLocal(id); store.remove(id);
+    toast(`Undid: added ${featTitle(h.after)}`);
+  } else {           // it was changed or deleted: put the old version back
+    const f = clone(h.before);
+    f.updated = Date.now();
+    f.$ = { ...(f.$ || {}), saved: feats.has(f.id) && !!f.$?.saved };
+    upsert(f, true);
+    toast(h.after ? `Undid changes to ${featTitle(f)}` : `Restored ${featTitle(f)}`);
+  }
 }
 
 // ---------- info panel (click anything you drew) ----------
@@ -1261,7 +1352,7 @@ function startAdd(catId, parentId) {
   const kind = shape === 'auto' || CAT[catId].shape === 'route' ? CAT[catId].shape : shape;
   draft = newDraft(catId, kind);
   if (parentId) draft.parent = parentId;
-  if (kind === 'polygon') { tool = 'poly'; draft.points = []; setHint(`${CAT[catId].name}: click to outline the area (3+ points)`, true); }
+  if (kind === 'polygon') { tool = 'poly'; draft.points = []; setHint(`${CAT[catId].name}: click to outline the area · right-click or Done to finish`, true); }
   else { tool = 'place'; if (kind === 'circle') draft.radius = CAT[catId].radius || 200; setHint(`${CAT[catId].name}: click the map to place it`); }
 }
 function startCompound(parentId) {
@@ -1275,10 +1366,15 @@ let polyPreview = null;
 function drawPolyPreview() {
   polyPreview?.remove(); polyPreview = null;
   if (tool === 'poly' && polyPts.length) {
-    polyPreview = L.featureGroup([
-      L.polyline(polyPts.map(ll), { color: '#fff', weight: 2, dashArray: '6 5', interactive: false }),
-      ...polyPts.map(p => L.circleMarker(ll(p), { radius: 4, color: '#fff', fillOpacity: 1, interactive: false })),
-    ]).addTo(map);
+    const line = L.polyline(polyPts.map(ll), { color: '#fff', weight: 2, dashArray: '6 5', interactive: false });
+    polyPreview = L.featureGroup([line]).addTo(map);
+    // corners you've placed can be dragged while you're still drawing; click the first one to close the shape
+    polyPts.forEach((p, i) => {
+      const m = L.marker(ll(p), { draggable: true, keyboard: false, zIndexOffset: 1500, icon: vIcon(i === 0 && polyPts.length >= 3 ? 'first' : ''),
+        title: i === 0 && polyPts.length >= 3 ? 'Click to close the shape' : 'Drag to move' }).addTo(polyPreview);
+      m.on('drag', () => { setFromLL(p, m.getLatLng()); line.setLatLngs(polyPts.map(ll)); });
+      m.on('click', e => { L.DomEvent.stop(e); if (i === 0 && polyPts.length >= 3) finishPoly(); });
+    });
   }
 }
 function finishPoly() {
@@ -1454,6 +1550,27 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('ctx').style.display === 'block') { closeCtx(); return; }
   if (e.key === 'Escape') { if (tool) cancelTool(); else if ($('form').classList.contains('show')) closeForm(); else if (infoId) closeInfo(); }
   if (e.key === 'Enter' && tool === 'poly') finishPoly();
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable
+    || $('auth').classList.contains('show') || $('srvpick').classList.contains('show');
+  if (typing) return;
+  const formOpen = $('form').classList.contains('show');
+  // Backspace / Ctrl+Z: undo the last thing you did
+  if (e.key === 'Backspace' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z')) {
+    e.preventDefault();
+    if (tool === 'poly') { polyPts.pop(); drawPolyPreview(); return; }
+    if (tool === 'measure') { measurePts.pop(); drawMeasure(); if (!measurePts.length) setHint('Measure: click points on the map', true); return; }
+    if (tool === 'route' && draft) { $('rUndo').click(); return; }
+    if (formOpen) { if (!undoDraft()) toast('Nothing to undo on this one yet'); return; }
+    undoSaved(); return;
+  }
+  // Delete: remove the selected corner, or the thing you're placing / editing / looking at
+  if (e.key === 'Delete') {
+    e.preventDefault();
+    if (formOpen && draft?.kind === 'polygon' && vSel >= 0) { removeVertex(vSel); return; }
+    if (tool === 'poly') { cancelTool(); toast('Area discarded'); return; }
+    if (formOpen && draft) { $('fDelete').click(); return; }
+    if (infoId) del(infoId, true);
+  }
 });
 $('hintCancel').onclick = () => { const wasForm = $('form').classList.contains('show'); cancelTool(); if (wasForm) renderDraft(); };
 $('hintDone').onclick = () => { if (tool === 'poly') finishPoly(); else if (tool === 'route') $('fSave').click(); else cancelTool(); };
@@ -1945,7 +2062,9 @@ function openForm() {
   if (f.cat === 'compound') buildParentSel();
   $('fRadius').value = f.radius || 200;
   $('fRadiusWrap').style.display = f.kind === 'circle' ? '' : 'none';
-  $('fDelete').style.display = feats.has(f.id) ? '' : 'none';
+  $('fDelete').textContent = feats.has(f.id) ? 'Delete' : 'Discard';
+  $('fTip').textContent = f.kind === 'polygon' ? 'Drag corners to adjust · drag or click the small dots to add a corner · right-click a corner (or select it and press Delete) to remove it · Backspace undoes' : f.kind === 'circle' ? 'Drag the middle to move it and the edge handle to resize · Backspace undoes' : f.kind === 'marker' ? 'Drag the handle to move it · Backspace undoes' : '';
+  $('fTip').style.display = $('fTip').textContent ? '' : 'none';
   $('fMove').textContent = f.kind === 'polygon' ? 'Redraw' : 'Reposition';
   const isRoute = f.kind === 'route';
   $('fMove').style.display = isRoute ? 'none' : '';
@@ -1961,7 +2080,7 @@ function closeForm(silent) {
   if (!$('form').classList.contains('show')) return;
   $('form').classList.remove('show');
   if (tool === 'route') { tool = null; setHint(''); }
-  wpSel = -1;
+  wpSel = -1; vSel = -1; draftHist = [];
   const id = editingId; draft = null; editingId = null; renderDraft();
   if (id) renderFeature(id);
   if (!silent) document.body.classList.remove('open');
@@ -2007,10 +2126,14 @@ $('fBr').oninput = () => { if (!draft) return; draft.br = +$('fBr').value / 100;
 $('fOp').oninput = () => { if (!draft) return; draft.op = +$('fOp').value / 100; syncLook(); renderDraft(); };
 for (const b of $('fFill').children) b.onclick = () => { if (!draft) return; draft.fill = b.dataset.v; if (draft.fill === 'solid') delete draft.fill; syncLook(); renderDraft(); };
 $('fCancel').onclick = () => { const id = editingId; closeForm(); if (id) openInfo(id); };
-$('fDelete').onclick = () => { const id = draft.id; closeForm(); del(id); };
+$('fDelete').onclick = () => {
+  const id = draft.id, saved = feats.has(id);
+  closeForm();
+  if (saved) del(id, true); else toast('Discarded');
+};
 $('fMove').onclick = () => {
-  readForm(); document.body.classList.remove('open');
-  if (draft.kind === 'polygon') { tool = 'poly'; polyPts = []; setHint('Click to outline the area (3+ points)', true); }
+  readForm(); document.body.classList.remove('open'); pushDraftHist();
+  if (draft.kind === 'polygon') { tool = 'poly'; polyPts = []; setHint('Click to outline the area · right-click or Done to finish', true); }
   else { tool = 'place'; setHint('Click the new position'); }
 };
 $('fSave').onclick = () => {
@@ -2031,7 +2154,8 @@ $('fSave').onclick = () => {
 // ---------- data ----------
 function applyLocal(f) { feats.set(f.id, f); renderFeature(f.id); refreshSide(); if (infoId === f.id) renderInfo(); }
 function removeLocal(id) { if (!feats.delete(id)) return; renderFeature(id); refreshSide(); if (infoId === id) closeInfo(); }
-function upsert(f) {
+function upsert(f, noHist) {
+  if (!noHist) record(feats.get(f.id), f);
   const m = f.$ = { ...(f.$ || {}) };
   if (!m.owner) m.owner = me?.id;
   if (!m.vis) m.vis = defaultVis(f.cat);
@@ -2039,11 +2163,17 @@ function upsert(f) {
   if (!m.fac && m.vis !== 'private') m.fac = myFac;
   applyLocal(f); store.save(f);
 }
-function del(id) {
+// quick = Delete key / button: no prompt (Backspace brings it back) unless it has notes, which can't be restored
+function del(id, quick) {
   const f = feats.get(id); if (!f) return;
-  const kids = compoundsOf(id);
-  if (!confirm(`Delete "${featTitle(f)}"${kids.length ? ` (its ${kids.length} compound${kids.length > 1 ? 's stay but lose their base' : ' stays but loses its base'})` : ''} for everyone? Its notes are deleted too.`)) return;
+  if (!canEdit(f)) return toast("You can't delete this one");
+  const kids = compoundsOf(id), nn = [...notes.values()].filter(n => n.feature_id === id).length;
+  if (nn) {
+    if (!confirm(`Delete "${featTitle(f)}"${kids.length ? ` (its ${kids.length} compound${kids.length > 1 ? 's stay but lose their base' : ' stays but loses its base'})` : ''}?${nn ? ` Its ${nn} note${nn > 1 ? 's are' : ' is'} deleted too and can't be brought back.` : ''}`)) return;
+  }
+  record(f, null);
   removeLocal(id); store.remove(id);
+  toast(`Deleted ${featTitle(f)} · Backspace to undo`);
 }
 const dataOf = f => { const { $: _m, ...d } = f; return d; };
 function rowToFeat(r) {
