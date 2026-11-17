@@ -332,6 +332,7 @@
           <button data-shape="marker">Pin</button>
           <button data-shape="circle">Circle</button>
           <button data-shape="polygon">Area</button>
+          <button data-shape="box" title="Drag a rectangle, then adjust its corners">Box</button>
         </div>
         <div id="palette"></div>
 
@@ -1394,7 +1395,7 @@ function setHint(text, showDone) {
 }
 function cancelTool() {
   const tool0 = tool;
-  tool = null; polyPts = []; drawPolyPreview();
+  tool = null; polyPts = []; drawPolyPreview(); endBoxDrag();
   measurePts = []; measureLayer?.remove(); measureLayer = null;
   $('tMeasure').classList.remove('on'); $('tNav').classList.remove('on');
   if (!$('form').classList.contains('show')) { draft = null; editingId = null; }
@@ -1412,10 +1413,12 @@ function startAdd(catId, parentId) {
   if (catId === 'route') return startRoute();
   closeForm(true); closeInfo(); cancelTool();
   document.body.classList.remove('open');
-  const kind = shape === 'auto' || CAT[catId].shape === 'route' ? CAT[catId].shape : shape;
+  const kind0 = shape === 'auto' || CAT[catId].shape === 'route' ? CAT[catId].shape : shape;
+  const kind = kind0 === 'box' ? 'polygon' : kind0;
   draft = newDraft(catId, kind);
   if (parentId) draft.parent = parentId;
-  if (kind === 'polygon') { tool = 'poly'; draft.points = []; setHint(`${CAT[catId].name}: click to outline the area · right-click or Done to finish`, true); }
+  if (kind0 === 'box') { startBox(); return; }
+  if (kind === 'polygon') { tool = 'poly'; draft.points = []; setHint(`${CAT[catId].name}: click to outline the area (Shift-drag for a box) · right-click or Done to finish`, true); }
   else { tool = 'place'; if (kind === 'circle') draft.radius = CAT[catId].radius || 200; setHint(`${CAT[catId].name}: click the map to place it`); }
 }
 function startCompound(parentId) {
@@ -1440,6 +1443,61 @@ function drawPolyPreview() {
     });
   }
 }
+// ---------- box drawing: drag a rectangle, it becomes an area with draggable corners ----------
+let boxDrag = null;   // { a: [x,y], b: [x,y], layer }
+function startBox() {
+  tool = 'box'; draft.points = [];
+  map.dragging.disable();
+  setHint(`${CAT[draft.cat].name}: drag a box over the area · scroll to zoom · Esc to cancel`);
+}
+function endBoxDrag() {
+  boxDrag?.layer.remove(); boxDrag = null;
+  if (!map.dragging.enabled()) map.dragging.enable();
+}
+function boxPt(ev) { const q = map.mouseEventToLatLng(ev); return [clampW(Math.round(q.lng)), clampW(Math.round(q.lat))]; }
+function drawBoxDrag() {
+  const { a, b } = boxDrag;
+  const bounds = L.latLngBounds(ll(a), ll(b));
+  const txt = `${fmtDist(Math.abs(b[0] - a[0]))} × ${fmtDist(Math.abs(b[1] - a[1]))}`;
+  if (!boxDrag.layer) {
+    boxDrag.layer = L.rectangle(bounds, { color: CAT[draft.cat].color || '#fff', weight: 2, dashArray: '6 5', fillOpacity: .15, interactive: false }).addTo(map);
+    boxDrag.layer.bindTooltip(txt, { permanent: true, direction: 'center', className: 'lbl' });
+  } else { boxDrag.layer.setBounds(bounds); boxDrag.layer.setTooltipContent(txt); }
+}
+$('map').addEventListener('mousedown', ev => {
+  if (ev.button !== 0 || !draft) return;
+  // Box tool: any drag. While outlining: Shift+drag, before you've placed more than the first corner.
+  const ok = tool === 'box' || (tool === 'poly' && ev.shiftKey && polyPts.length <= 1);
+  if (!ok || ev.target.closest('.leaflet-control, #ctx, #hint')) return;
+  if (tool === 'box' && ev.target.closest('.leaflet-marker-icon')) return;
+  ev.stopPropagation(); ev.preventDefault();
+  const from = boxPt(ev);
+  map.dragging.disable();
+  boxDrag = { a: from, b: from, layer: null, x: ev.clientX, y: ev.clientY, moved: false };
+  const move = e2 => {
+    if (!boxDrag) return;
+    if (Math.hypot(e2.clientX - boxDrag.x, e2.clientY - boxDrag.y) > 4) boxDrag.moved = true;
+    boxDrag.b = boxPt(e2); if (boxDrag.moved) drawBoxDrag();
+  };
+  const up = e2 => {
+    document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+    if (!boxDrag) return;
+    const { a, b, moved } = boxDrag;
+    const wasPoly = tool === 'poly';
+    boxDrag.layer?.remove(); boxDrag = null;
+    if (!moved || Math.abs(b[0] - a[0]) < 5 || Math.abs(b[1] - a[1]) < 5) {
+      if (wasPoly) map.dragging.enable();
+      return;   // too small: keep waiting for a proper drag
+    }
+    map.dragging.enable();
+    const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+    draft.points = [[x0, y1], [x1, y1], [x1, y0], [x0, y0]];
+    polyPts = []; tool = null; drawPolyPreview(); setHint('');
+    renderDraft(); openForm();
+    toast('Drag the corners to adjust, or the middle dots to add a corner');
+  };
+  document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+}, true);
 function finishPoly() {
   if (polyPts.length < 3) { toast('Need at least 3 points'); return; }
   draft.points = polyPts.slice(); polyPts = []; tool = null;
@@ -1495,11 +1553,12 @@ function placeInfo(p) {
 function closeCtx() { $('ctx').style.display = 'none'; $('ctx').replaceChildren(); }
 function addAt(catId, p, kind) {
   closeCtx(); closeForm(true); closeInfo(); cancelTool();
-  const c = CAT[catId], pos = [clampW(p[0]), clampW(p[1])], k = kind || c.shape;
+  const c = CAT[catId], pos = [clampW(p[0]), clampW(p[1])], k0 = kind || c.shape, k = k0 === 'box' ? 'polygon' : k0;
   draft = newDraft(catId, k);
+  if (k0 === 'box') { startBox(); return; }
   if (k === 'polygon') {
     tool = 'poly'; draft.points = []; polyPts = [pos]; drawPolyPreview();
-    setHint(`${c.name}: keep clicking to outline it · right-click or Done to finish`, true); return;
+    setHint(`${c.name}: keep clicking to outline it (or Shift-drag a box from here) · right-click or Done to finish`, true); return;
   }
   draft.pos = pos;
   if (k === 'circle') draft.radius = c.radius || 200;
@@ -1572,7 +1631,7 @@ function openCtx(e, featId) {
     const chips = el('div', { className: 'cc' });
     for (const [id, name] of AREA_TYPES)
       chips.append(el('button', { type: 'button', style: `--c:${CAT[id].color}`, onclick: () => addAt(id, p, areaShape) }, `${CAT[id].icon} ${name}`));
-    box.append(hr(), el('div', { className: 'cl' }, 'Start an area here', el('span', { className: 'cs' }, shapeBtn('polygon', 'Outline'), shapeBtn('circle', 'Circle'))), chips);
+    box.append(hr(), el('div', { className: 'cl' }, 'Start an area here', el('span', { className: 'cs' }, shapeBtn('polygon', 'Outline'), shapeBtn('box', 'Box'), shapeBtn('circle', 'Circle'))), chips);
     box.append(hr(), el('div', { className: 'cl', textContent: 'Add a pin here' }));
     const grid = el('div', { className: 'cg' });
     for (const c of CATS) if (c.id !== 'route' && c.id !== 'compound' && c.id !== 'territory')
