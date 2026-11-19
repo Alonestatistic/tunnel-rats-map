@@ -93,43 +93,44 @@ Content-Type: application/json</code></pre>
   <tr><td><code>updated</code>, <code>author</code></td><td>Epoch ms and a display name. Set <code>updated</code> to <code>Date.now()</code> so open maps pick up the change.</td></tr>
 </table>
 
-<h2 id="games">4. Minigames and the score sheet</h2>
-<p>Each server has a score sheet: every player gets a points wallet (starting at 1000) that they play with in the <b>Games</b> tab. Results are rolled by the database, not the browser, so the numbers can be trusted. Use these calls to tie it into your server:</p>
+<h2 id="games">4. Loot merge and the leaderboard</h2>
+<p><b>Loot merge</b> is the game in the <b>Games</b> tab, played on the map: loot drops around towns, and players drag an item onto an identical one to upgrade it (rag → bandage → … → heli crash loot). Each merge is one <b>upgrade</b> and earns points. Each server has its own leaderboard, ranked by upgrades. The database holds every board and checks every merge, so the numbers can be trusted. Use these calls to tie it into your server:</p>
 <ul>
   <li>Post the leaderboard to Discord or a server website.</li>
-  <li>Announce jackpots as they happen.</li>
+  <li>Announce heli crash loot as players reach it.</li>
   <li>Reward things that happen in game (kills, events, playtime) with points.</li>
   <li>Let players trade points for in-game loot: your server tool takes the points with a negative amount, then spawns the item.</li>
 </ul>
 
-<h3>api_scores: read the score sheet <span class="dim">(any key)</span></h3>
+<h3>api_scores: read the leaderboard <span class="dim">(any key)</span></h3>
 <table>
   <tr><th>Field</th><th>Required</th><th>Meaning</th></tr>
   <tr><td><code>p_key</code></td><td>yes</td><td>Any key for the server</td></tr>
-  <tr><td><code>p_limit</code></td><td>no</td><td>How many players, highest points first (default 50, max 500)</td></tr>
+  <tr><td><code>p_limit</code></td><td>no</td><td>How many players, most upgrades first (default 50, max 500)</td></tr>
 </table>
 <pre><code id="ex4"></code></pre>
 <pre><code>{
   "server": { "id": "…", "name": "Badlands PvP" },
   "players": [
-    { "username": "someuser", "faction": "Wolves", "faction_tag": "WLF", "points": 4250, "plays": 312,
-      "wagered": 15400, "won": 18650, "best_win": 1875, "best_game": "slots", "updated_at": "…" }
+    { "username": "someuser", "faction": "Wolves", "faction_tag": "WLF", "upgrades": 212, "points": 18650,
+      "helis": 3, "best_item": "Heli crash cleared", "updated_at": "…" }
   ]
 }</code></pre>
+<p><code>upgrades</code> is how many merges the player has made. <code>helis</code> counts heli crash loot they've made. <code>best_item</code> is the best thing they've merged so far.</p>
 
-<h3>api_game_log: jackpots, airdrops and point changes <span class="dim">(any key)</span></h3>
+<h3>api_game_log: heli crashes and point changes <span class="dim">(any key)</span></h3>
 <p>Returns up to 100 events after the id you pass, oldest first. Remember the last <code>id</code> you saw and pass it next time.</p>
 <table>
   <tr><th><code>kind</code></th><th>When</th></tr>
-  <tr><td><code>jackpot</code></td><td>A win of 50× the bet or more</td></tr>
-  <tr><td><code>big_win</code></td><td>A win of 10× the bet or more</td></tr>
-  <tr><td><code>airdrop</code></td><td>A player claimed their free points (every 20 hours)</td></tr>
+  <tr><td><code>heli</code></td><td>A player merged two top items into heli crash loot</td></tr>
+  <tr><td><code>clear</code></td><td>A player merged two heli crashes for the big bonus</td></tr>
   <tr><td><code>grant</code></td><td>Points given or taken through <code>api_give_points</code> (<code>note</code> says why)</td></tr>
-  <tr><td><code>reset</code></td><td>An admin wiped the score sheet</td></tr>
+  <tr><td><code>reset</code></td><td>An admin wiped the leaderboard</td></tr>
 </table>
 <pre><code id="ex5"></code></pre>
-<pre><code>[ { "id": 118, "kind": "jackpot", "game": "slots", "amount": 7500, "balance": 9120, "note": null,
+<pre><code>[ { "id": 118, "kind": "heli", "amount": 1140, "balance": 9120, "note": null,
     "username": "someuser", "created_at": "…" } ]</code></pre>
+<p><code>amount</code> is the points that event earned (or gave or took), <code>balance</code> the player's points after it.</p>
 
 <h3>api_give_points: give or take points <span class="dim">(server-wide write keys only)</span></h3>
 <table>

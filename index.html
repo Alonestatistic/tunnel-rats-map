@@ -322,49 +322,57 @@
   .modal h2 { font-size: 19px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 4px; }
   .modal h3 { font-size: 13px; margin: 18px 0 4px; color: var(--accent); }
   .modal p { color: var(--dim); font-size: 12.5px; margin: 4px 0 0; }
-  /* ---------- minigames ---------- */
-  .gwallet { display: flex; align-items: baseline; gap: 6px; margin: 2px 0 10px; }
-  .gwallet b { font-size: 26px; font-variant-numeric: tabular-nums; color: var(--accent); }
-  .gpick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .gpick button { padding: 12px 6px; font-size: 13px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  .gpick button span { font-size: 26px; line-height: 1.1; }
-  .gpick button small { font-weight: 400; color: var(--dim); font-size: 11px; }
+  /* ---------- Loot merge (on-map game) ---------- */
+  .ghero { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .ghero .gico { font-size: 34px; line-height: 1; }
+  .ghero b { font-size: 15px; }
+  .gstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; text-align: center; }
+  .gstats > div { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px; min-width: 0; }
+  .gstats b { display: block; font-size: 17px; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gstats small { color: var(--dim); font-size: 11px; }
+  .gbig { width: 100%; padding: 10px; font-size: 14px; }
+  .chains { display: grid; gap: 5px; margin: 8px 0 4px; }
+  .chain { display: grid; grid-template-columns: 64px 1fr; align-items: center; font-size: 12px; color: var(--dim); }
+  .chain .ci { display: flex; align-items: center; gap: 1px; font-size: 18px; flex-wrap: wrap; }
+  .chain .ci i { font-style: normal; font-size: 10px; color: var(--dim); }
   .srow { display: grid; grid-template-columns: 26px 1fr auto; gap: 2px 8px; align-items: center; padding: 6px 4px; border-bottom: 1px solid #ffffff0d; font-size: 13px; }
   .srow.me { background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 6px; }
   .srow .rk { color: var(--dim); font-variant-numeric: tabular-nums; text-align: right; }
   .srow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .srow .pt { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
   .srow .bw { grid-column: 2 / -1; font-size: 11px; color: var(--dim); margin-top: -3px; }
-  .gbox { width: 420px; }
-  .ghead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .ghead h2 { flex: 1; margin: 0; }
-  .gpts { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .reels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; border-radius: 14px; background: var(--bg); border: 1px solid var(--line); box-shadow: inset 0 4px 14px #0008; }
-  .reel { height: 92px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(#0000, #ffffff0a 50%, #0000), var(--panel2); border: 1px solid var(--line); font-size: 50px; overflow: hidden; }
-  .reel.spin span { filter: blur(1.5px); transform: translateY(4px); }
-  .reel.land span { animation: gLand .25s ease-out; }
-  .reel.hit { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 60%, transparent); }
-  .reel span { display: block; line-height: 1; }
-  @keyframes gLand { 0% { transform: translateY(-14px); } 70% { transform: translateY(3px); } 100% { transform: none; } }
-  .gname { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; font-size: 11px; color: var(--dim); margin-top: 4px; min-height: 15px; }
-  .gmsg { text-align: center; font-weight: 600; min-height: 22px; margin: 10px 0 8px; }
-  .gmsg.win { color: var(--accent); }
-  .gmsg.big { font-size: 17px; animation: gPulse .9s ease-in-out 2; }
-  @keyframes gPulse { 50% { transform: scale(1.08); } }
-  .gbets { display: flex; gap: 4px; align-items: center; margin-bottom: 8px; }
-  .gbets > span { font-size: 12px; color: var(--dim); margin-right: 4px; }
-  .gbets button { flex: 1; padding: 5px 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-  .gbig { width: 100%; padding: 11px; font-size: 15px; }
-  .crates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .crate { height: 118px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; border-radius: 12px; }
-  .crate .ce { font-size: 46px; line-height: 1; }
-  .crate.shake .ce { animation: gShake .12s linear infinite; }
-  .crate:disabled { opacity: 1; }
-  .crate.open { cursor: default; }
-  .crate.open:not(.picked) { opacity: .5; }
-  .crate.picked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-  .crate b { font-variant-numeric: tabular-nums; }
-  @keyframes gShake { 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
+  .lootwrap { background: none; border: 0; }
+  .loot { --lc: #9aa0a6; width: 44px; height: 44px; box-sizing: border-box; border-radius: 50%; display: grid; place-items: center; font-size: 24px; line-height: 1; position: relative; cursor: grab; user-select: none;
+    background: radial-gradient(circle at 50% 38%, #343a42, #15181c); border: 2px solid var(--lc); box-shadow: 0 3px 10px #000b; transition: transform .12s, opacity .15s, box-shadow .15s; }
+  .loot i { position: absolute; right: -5px; bottom: -4px; min-width: 17px; height: 17px; box-sizing: border-box; border-radius: 9px; background: var(--lc); color: #111; font: 700 10.5px/17px system-ui, sans-serif; text-align: center; font-style: normal; padding: 0 4px; }
+  .loot.t1 { --lc: #6cc070; } .loot.t2 { --lc: #4aa3ff; } .loot.t3 { --lc: #b07cff; } .loot.t4 { --lc: #ff9f3a; } .loot.t5 { --lc: #ff5d73; }
+  .loot.t6 { --lc: #ffd84a; width: 52px; height: 52px; font-size: 30px; margin: -4px; box-shadow: 0 0 16px #ffd84a88, 0 3px 10px #000b; }
+  .loot.shiny { box-shadow: 0 0 0 2px #fff8, 0 0 16px 5px #ffe58aaa, 0 3px 10px #000b; }
+  .loot.shiny::after { content: '✨'; position: absolute; left: -7px; top: -9px; font-size: 15px; }
+  .loot.match { transform: scale(1.12); box-shadow: 0 0 0 3px var(--accent), 0 0 18px var(--accent); }
+  .loot.dim { opacity: .3; }
+  .loot.target { transform: scale(1.32); }
+  .loot.held { transform: scale(1.15); cursor: grabbing; box-shadow: 0 0 0 3px #fff, 0 8px 18px #000c; }
+  .loot.going { opacity: 0; transform: scale(.4); }
+  .loot.pop { animation: lootPop .45s cubic-bezier(.3, 1.6, .5, 1); }
+  .loot.drop { animation: lootDrop .5s ease-out; }
+  @keyframes lootPop { 0% { transform: scale(.3); } 100% { transform: none; } }
+  @keyframes lootDrop { 0% { transform: translateY(-40px) scale(.6); opacity: 0; } 70% { transform: translateY(3px); opacity: 1; } 100% { transform: none; } }
+  .lootfloat { pointer-events: none !important; }
+  .lootfloat div { position: absolute; left: 50%; bottom: 14px; white-space: nowrap; text-align: center; font-weight: 800; color: #fff; text-shadow: 0 1px 3px #000, 0 0 8px #000; animation: lootUp 1.6s ease-out forwards; }
+  .lootfloat b { display: block; font-size: 21px; color: var(--accent); }
+  .lootfloat b.huge { font-size: 30px; }
+  .lootfloat small { display: block; font-size: 11.5px; }
+  @keyframes lootUp { 0% { transform: translate(-50%, 6px); opacity: 0; } 12% { opacity: 1; transform: translate(-50%, 0); } 70% { opacity: 1; } 100% { transform: translate(-50%, -50px); opacity: 0; } }
+  #mhud { border-color: var(--accent); }
+  #mhud.show { display: flex; }
+  #mhud .mt { font-weight: 700; }
+  #mhStats { font-variant-numeric: tabular-nums; }
+  #mhCombo { display: none; position: relative; color: #ff9f3a; font-weight: 700; padding-bottom: 3px; font-variant-numeric: tabular-nums; }
+  #mhCombo.on { display: inline-block; }
+  #mhCombo::after { content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: calc(var(--p, 0) * 100%); background: #ff9f3a; transition: width .25s linear; }
+  body.merging #toast { bottom: calc(var(--hudH, 52px) + 26px); }
+  @media (max-width: 560px) { #mhud .mt { display: none; } }
   .paytable { margin-top: 12px; font-size: 12.5px; }
   .paytable summary { cursor: pointer; color: var(--dim); }
   .paytable table { width: 100%; border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
@@ -613,6 +621,7 @@
   <div id="act"><div class="ah"><b>Recent activity</b><button id="actClose" class="linkbtn" aria-label="Close">✕</button></div><div id="actList"></div></div>
   <div id="selbar" class="bar"><span id="selText"></span><button id="selRoute" class="primary">Make route</button><button id="selClear">Clear</button></div>
   <div id="navbar" class="bar"><span id="navText"></span><button id="navSwap">⇄ Swap</button><button id="navSave" class="primary">Save as route</button><button id="navClear">Clear</button></div>
+  <div id="mhud" class="bar" role="status"><span class="mt">🎒 Loot merge</span><span id="mhStats"></span><span id="mhCombo"></span><button id="mhGather" title="Move all your loot into the current view">📍 Gather here</button><button id="mhStop" class="primary">Done</button></div>
   <div id="coords"></div>
   <div id="ctx" role="menu"></div>
   <div id="hov" aria-hidden="true"></div>
@@ -696,12 +705,6 @@
     <div class="formbtns"><button id="spCreate">Create server</button><button id="spClose" style="display:none">Cancel</button></div>
     <div class="err" id="spErr"></div>
     <p style="margin-top:14px"><button class="linkbtn" id="spLogout">Log out</button></p>
-  </div>
-</div>
-<div id="game" class="modal">
-  <div class="box gbox">
-    <div class="ghead"><h2 id="gTitle"></h2><span class="gpts" id="gPts"></span><button id="gClose" class="linkbtn" aria-label="Close">✕</button></div>
-    <div id="gBody"></div>
   </div>
 </div>
 <div id="toast"></div>
@@ -2455,16 +2458,11 @@ map.on('contextmenu', e => {
 map.on('click movestart zoomstart', closeCtx);
 document.addEventListener('mousedown', e => { if (!$('ctx').contains(e.target)) closeCtx(); }, true);
 document.addEventListener('keydown', e => {
-  // a game is open: Esc closes it, Space / Enter plays, and nothing reaches the map (no stray undo or delete)
-  if ($('game').classList.contains('show')) {
-    if (e.key === 'Escape') closeGame();
-    else if ((e.key === ' ' || e.key === 'Enter') && !e.repeat && !/BUTTON|INPUT/.test(document.activeElement?.tagName)) { e.preventDefault(); gameKey(); }
-    return;
-  }
   if (e.key === 'Escape' && $('keys').classList.contains('show')) { $('keys').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('auth').classList.contains('show')) { $('auth').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('srvpick').classList.contains('show')) { $('srvpick').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('ctx').style.display === 'block') { closeCtx(); return; }
+  if (e.key === 'Escape' && mergeOn && !tool && !$('form').classList.contains('show')) { if (mSel) lootSelect(null); else mergeStop(); return; }
   if (e.key === 'Escape') { if (tool) cancelTool(); else if ($('form').classList.contains('show')) closeForm(); else if (infoId) closeInfo(); else if (sel.size) clearSel(); }
   if (e.key === 'Enter' && tool === 'poly') finishPoly();
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable
@@ -3777,248 +3775,331 @@ function renderServer() {
       } })));
 }
 
-// ---------- minigames + score sheet ----------
-// On a server the database rolls every result (db/supabase-v4-games.sql: play_game), so the score sheet can't be faked
-// and server apps can trust it. These tables MUST match that file; here they're used for display and for guest play.
-const SLOT_SYMS = [
-  { e: '🧟', n: 'Infected', w: 14, p3: 0, p2: 0 },
-  { e: '🍎', n: 'Apple', w: 16, p3: 5, p2: 1 },
-  { e: '🥫', n: 'Baked beans', w: 13, p3: 10, p2: 2 },
-  { e: '🩹', n: 'Bandage', w: 11, p3: 15, p2: 2 },
-  { e: '🔋', n: 'Car battery', w: 9, p3: 25, p2: 4 },
-  { e: '🪓', n: 'Firefighter axe', w: 7, p3: 40, p2: 5 },
-  { e: '💉', n: 'Morphine', w: 5, p3: 80, p2: 7 },
-  { e: '🦺', n: 'Plate carrier', w: 3, p3: 200, p2: 12 },
-  { e: '🚁', n: 'Heli crash loot', w: 2, p3: 750, p2: 25 },
-];
-const CRATE_LOOT = [
-  { e: '🕸️', n: 'Empty', w: 47, m: 0 },
-  { e: '🥫', n: 'Canned food', w: 16, m: 0.5 },
-  { e: '💊', n: 'Medical supplies', w: 14, m: 1 },
-  { e: '🔧', n: 'Car parts', w: 12, m: 2 },
-  { e: '🎒', n: 'Assault backpack', w: 6, m: 3 },
-  { e: '🦺', n: 'Plate carrier', w: 4, m: 5 },
-  { e: '🚁', n: 'Heli crash loot', w: 1, m: 10 },
-];
-const BETS = [10, 25, 50, 100, 250], START_POINTS = 1000, AIRDROP = 250, AIRDROP_MS = 20 * 3600e3;
-const GAME_NAMES = { slots: '🎰 Loot slots', crates: '📦 Airdrop crates' };
-const wallets = new Map(); // user_id -> row, current server
-let gamesFor = null, gamesDb = null, gamesChannel = null, gameOpen = null, gameBusy = false;
+// ---------- Loot merge: the on-map minigame, and the upgrades leaderboard ----------
+// Loot drops onto the map; drag an item onto an identical one to merge it into the next item up its chain.
+// On a server the database keeps the board and checks every merge (db/supabase-v4-games.sql: merge_items), so upgrades and
+// points can't be faked and server apps can trust the leaderboard. These numbers MUST match that file; here they're used
+// for display and for guest / practice play.
+const MERGE = {
+  chains: [
+    { n: 'Medical', items: [['🧻', 'Rag'], ['🩹', 'Bandage'], ['💊', 'Painkillers'], ['💉', 'Morphine'], ['🩸', 'Blood bag'], ['⛑️', 'First aid kit']] },
+    { n: 'Weapons', items: [['🪨', 'Stone'], ['🔪', 'Kitchen knife'], ['🪓', 'Hatchet'], ['🏹', 'Crossbow'], ['🔫', 'Pistol'], ['🎯', 'Scoped rifle']] },
+    { n: 'Gear', items: [['🧦', 'Wool socks'], ['🧢', 'Cap'], ['🥾', 'Hiking boots'], ['🎒', 'Backpack'], ['🦺', 'Plate carrier'], ['🪖', 'Ballistic helmet']] },
+  ],
+  heli: ['🚁', 'Heli crash loot'],
+  SPAWN_MS: 5000, MAX: 20, BANK: 10, START: 8, COMBO_MS: 6000, HELI_CLEAR: 2500,
+};
+const itemOf = it => it.t >= 6 ? MERGE.heli : MERGE.chains[it.c].items[it.t];
+const tierPts = t => 10 * 2 ** t;
+const sameItem = (a, b) => a.c === b.c && a.t === b.t;
+const emojiOf = name => name === 'Heli crash cleared' ? '💥' : name === MERGE.heli[1] ? MERGE.heli[0] : MERGE.chains.flatMap(c => c.items).find(i => i[1] === name)?.[0] || '';
+const players = new Map(); // user_id -> leaderboard row, current server
+let gamesFor = null, gamesDb = null, gamesChannel = null, gamesP = null;
 const gamesLocal = () => !ONLINE || gamesDb === false;
 const nf = n => Number(n || 0).toLocaleString();
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-const rollW = w => { const t = w.reduce((a, b) => a + b, 0); let r = crypto.getRandomValues(new Uint32Array(1))[0] % t; for (let i = 0; i < w.length; i++) { if (r < w[i]) return i; r -= w[i]; } return w.length - 1; };
-function slotWin(reels, bet) {
-  const [a, b, c] = reels;
-  if (a === b && b === c) return bet * SLOT_SYMS[a].p3;
-  if (a === b || a === c) return bet * SLOT_SYMS[a].p2;
-  if (b === c) return bet * SLOT_SYMS[b].p2;
-  return 0;
+const rnd = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+
+// --- guest / practice copy of the server rules (saved in this browser) ---
+const LKEY = 'fm:merge';
+function localState() {
+  const s = ls.get(LKEY, null);
+  return s && Array.isArray(s.board) ? s : { board: [], next_id: 1, spawn_at: Date.now() - MERGE.START * MERGE.SPAWN_MS, points: 0, merges: 0, helis: 0,
+    best_tier: 0, best_item: null, found: 0, combo: 0, last_merge_at: 0 };
 }
-function myWallet() {
-  if (gamesLocal()) return { points: START_POINTS, plays: 0, wagered: 0, won: 0, best_win: 0, airdrop_at: null, ...ls.get('fm:gw', {}) };
-  return wallets.get(me.id) || { user_id: me.id, points: START_POINTS, plays: 0, wagered: 0, won: 0, best_win: 0, airdrop_at: null };
+function localFill(s) {
+  const now = Date.now(), cnt = s.board.length, since = Math.max(s.spawn_at, now - MERGE.BANK * MERGE.SPAWN_MS);
+  const n = Math.min(Math.floor((now - since) / MERGE.SPAWN_MS), MERGE.MAX - cnt), added = [];
+  if (n <= 0) { if (cnt >= MERGE.MAX) s.spawn_at = now; return added; }
+  for (let k = 0; k < n; k++) added.push({ i: s.next_id + k, c: Math.floor(rnd() * 3), t: rnd() < .2 ? 1 : 0, s: rnd() < .07 });
+  s.board.push(...added); s.next_id += n;
+  s.spawn_at = cnt + n >= MERGE.MAX ? now : since + n * MERGE.SPAWN_MS;
+  return added;
 }
+function localMerge(s, a, b) {
+  if (a === b) throw new Error('Pick two different items');
+  const ea = s.board.find(e => e.i === a), eb = s.board.find(e => e.i === b);
+  if (!ea || !eb) throw new Error('That item is gone');
+  if (!sameItem(ea, eb)) throw new Error('Only two of the same item can be merged');
+  const now = Date.now(), combo = s.last_merge_at > now - MERGE.COMBO_MS ? Math.min(s.combo + 1, 8) : 0;
+  const shiny = !!(ea.s || eb.s), mult = (1 + .25 * combo) * (shiny ? 2 : 1);
+  s.board = s.board.filter(e => e.i !== a && e.i !== b);
+  let base, nt, name, bit = 0, bonus = 0, item = null;
+  if (ea.t === 6) { base = MERGE.HELI_CLEAR; nt = 7; name = 'Heli crash cleared'; }
+  else {
+    nt = ea.t + 1; const nc = nt === 6 ? 3 : ea.c;
+    base = tierPts(nt); name = itemOf({ c: nc, t: nt })[1];
+    bit = nt === 6 ? 1 << 18 : 1 << (ea.c * 6 + nt);
+    if (!(s.found & bit)) bonus = nt === 6 ? 500 : 50 * nt;
+    item = { i: s.next_id++, c: nc, t: nt, s: false }; s.board.push(item);
+  }
+  const gain = Math.floor(base * mult) + bonus;
+  Object.assign(s, { points: s.points + gain, merges: s.merges + 1, helis: s.helis + (nt === 6 ? 1 : 0), best_item: nt > s.best_tier || !s.best_item ? name : s.best_item,
+    best_tier: Math.max(s.best_tier, nt), found: s.found | bit, combo, last_merge_at: now });
+  return { item, name, gain, base, combo, shiny, bonus, points: s.points, merges: s.merges, spawned: localFill(s) };
+}
+
+const gameErr = error => /merge_state|merge_items|game_players|reset_scores/.test(error.message || '') && /find|exist|schema cache/i.test(error.message || '')
+  ? 'Games need a database update: a server admin has to run db/supabase-v4-games.sql in Supabase.' : error.message;
+async function mergeLoad() {
+  if (gamesLocal()) { const s = localState(); localFill(s); ls.set(LKEY, s); return s; }
+  const { data, error } = await sb.rpc('merge_state', { p_server: server.id });
+  if (error) { toast(gameErr(error)); return null; }
+  return data;
+}
+async function mergeDo(a, b) {
+  if (gamesLocal()) {
+    const s = localState();
+    try { const r = localMerge(s, a, b); ls.set(LKEY, s); return r; } catch (e) { toast(e.message); return null; }
+  }
+  const { data, error } = await sb.rpc('merge_items', { p_server: server.id, p_a: a, p_b: b });
+  if (error) { toast(gameErr(error)); return null; }
+  return data;
+}
+
+// --- leaderboard data + live updates ---
 function gamesReset() {
   if (gamesChannel) { sb.removeChannel(gamesChannel); gamesChannel = null; }
-  gamesFor = null; gamesDb = null; wallets.clear(); closeGame();
+  mergeStop();
+  gamesFor = null; gamesDb = null; gamesP = null; players.clear();
 }
-const gameErr = error => /play_game|claim_airdrop|game_wallets|reset_scores/.test(error.message || '') && /find|exist|schema cache/i.test(error.message || '')
-  ? 'Games need a database update: a server admin has to run db/supabase-v4-games.sql in Supabase.' : error.message;
+// load the leaderboard for the current server once; resolves when we know whether the games tables exist
+function gamesReady() { if (ONLINE && gamesFor !== server.id) gamesP = loadGames(); return gamesP; }
 async function loadGames() {
   const sid = server.id; gamesFor = sid;
-  const { data, error } = await sb.from('game_wallets').select('*').eq('server_id', sid);
+  const { data, error } = await sb.from('game_players').select('user_id, points, merges, helis, best_tier, best_item, updated_at').eq('server_id', sid);
   if (gamesFor !== sid) return;
   if (error) { gamesDb = false; console.warn('games:', error.message); refreshGames(); return; }
-  gamesDb = true; wallets.clear();
-  for (const w of data) wallets.set(w.user_id, w);
-  await loadProfiles(data.map(w => w.user_id));
-  // live score sheet. Its own channel, so a database without the games tables can't break map sync.
+  gamesDb = true; players.clear();
+  for (const r of data) players.set(r.user_id, r);
+  await loadProfiles(data.map(r => r.user_id));
+  // live leaderboard. Its own channel, so a database without the games tables can't break map sync.
   gamesChannel = sb.channel('games-' + sid)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'game_wallets', filter: `server_id=eq.${sid}` }, async msg => {
-      if (msg.new?.user_id) { wallets.set(msg.new.user_id, msg.new); await loadProfiles([msg.new.user_id]); refreshGames(); }
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: `server_id=eq.${sid}` }, async msg => {
+      const r = msg.new; if (!r?.user_id) return;
+      const { board, ...row } = r; players.set(r.user_id, row);
+      if (r.user_id === me.id && mergeOn && mg) { mg.points = r.points; hud(); }
+      await loadProfiles([r.user_id]); refreshGames();
     })
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'game_wallets' }, msg => {
-      if (msg.old?.server_id === sid || !msg.old?.server_id) { if (msg.old?.user_id) wallets.delete(msg.old.user_id); refreshGames(); }
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'game_players' }, msg => {
+      if (msg.old?.server_id === sid || !msg.old?.server_id) { if (msg.old?.user_id) players.delete(msg.old.user_id); refreshGames(); }
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_log', filter: `server_id=eq.${sid}` }, async msg => {
       const l = msg.new; if (!l) return;
-      if (l.kind === 'reset') { wallets.clear(); refreshGames(); if (l.user_id !== me.id) toast('🎲 The score sheet was reset'); return; }
+      if (l.kind === 'reset') {
+        players.clear(); refreshGames();
+        if (l.user_id !== me.id) toast('🎒 The Loot merge leaderboard was reset');
+        if (mergeOn) mergeSync();
+        return;
+      }
       if (l.user_id === me.id) {
         if (l.kind === 'grant') toast(`${l.amount > 0 ? '🎁 +' : '💸 '}${nf(l.amount)} points${l.note ? ' · ' + l.note : ''}`);
         return;
       }
       await loadProfiles([l.user_id]);
-      if (l.kind === 'jackpot') toast(`🚁 ${uname(l.user_id)} hit the jackpot on ${GAME_NAMES[l.game] || l.game}: +${nf(l.amount)}!`);
+      if (l.kind === 'heli') toast(`🚁 ${uname(l.user_id)} merged their way to heli crash loot!`);
+      if (l.kind === 'clear') toast(`💥 ${uname(l.user_id)} cleared a heli crash: +${nf(l.amount)}`);
     })
     .subscribe();
   refreshGames();
 }
-function refreshGames() {
-  if ($('paneGames').classList.contains('show')) renderGames();
-  if (gameOpen) $('gPts').textContent = nf(myWallet().points) + ' pts';
-}
-function airdropLeft() { const at = myWallet().airdrop_at; return at ? Math.max(0, new Date(at).getTime() + AIRDROP_MS - Date.now()) : 0; }
-async function claimAirdrop() {
-  if (gamesLocal()) {
-    if (airdropLeft()) return;
-    const w = myWallet(); w.points += AIRDROP; w.airdrop_at = new Date().toISOString(); ls.set('fm:gw', w);
-  } else {
-    const { data, error } = await sb.rpc('claim_airdrop', { p_server: server.id });
-    if (error) return toast(gameErr(error));
-    wallets.set(me.id, { ...myWallet(), points: data.points, airdrop_at: data.airdrop_at });
-  }
-  toast(`🪂 Airdrop landed: +${AIRDROP} points`); refreshGames();
-}
+function refreshGames() { if ($('paneGames').classList.contains('show')) renderGames(); }
+
+// --- the Games tab ---
 function renderGames() {
   const box = $('paneGames'); box.replaceChildren();
-  if (ONLINE && gamesFor !== server.id) loadGames();
-  const w = myWallet(), left = airdropLeft();
-  const totMin = Math.ceil(left / 60e3), hrs = Math.floor(totMin / 60), mins = totMin % 60;
+  gamesReady();
+  const mine = mergeOn && mg ? mg : gamesLocal() ? localState() : players.get(me.id) || { merges: 0, points: 0, best_item: null };
+  const stat = (v, l, title = '') => el('div', { title }, el('b', { textContent: v }), el('small', { textContent: l }));
+  const chains = el('div', { className: 'chains' });
+  for (const c of MERGE.chains) chains.append(el('div', { className: 'chain' }, el('span', { textContent: c.n }),
+    el('span', { className: 'ci' }, ...c.items.flatMap(([e, n], i) => [i ? el('i', { textContent: '›' }) : '', el('span', { textContent: e, title: n })]),
+      el('i', { textContent: '›' }), el('span', { textContent: MERGE.heli[0], title: MERGE.heli[1] }))));
+  const rules = el('table');
+  for (let t = 1; t <= 6; t++) rules.append(el('tr', {}, el('td', { textContent: t === 6 ? `${MERGE.heli[0]} ${MERGE.heli[1]}` : `Level ${t + 1}  ${MERGE.chains.map(c => c.items[t][0]).join(' ')}` }),
+    el('td', { textContent: nf(tierPts(t)) })));
+  rules.append(
+    el('tr', {}, el('td', { textContent: '🚁 + 🚁  clear the heli crash' }), el('td', { textContent: nf(MERGE.HELI_CLEAR) })),
+    el('tr', {}, el('td', { textContent: '🔥 Combo: merge again within 6 s' }), el('td', { textContent: '×1.25 … ×3' })),
+    el('tr', {}, el('td', { textContent: '✨ Shiny item in the merge' }), el('td', { textContent: '×2' })),
+    el('tr', {}, el('td', { textContent: '🆕 First time you make an item' }), el('td', { textContent: '+50 per level' })),
+    el('tr', {}, el('td', { textContent: '🆕 First heli crash' }), el('td', { textContent: '+500' })));
   box.append(el('div', { className: 'card' },
-    el('div', { className: 'dim', textContent: gamesLocal() ? (ONLINE ? 'Practice points (this browser only)' : 'Your points (this browser only)') : `Your points on ${server.name}` }),
-    el('div', { className: 'gwallet' }, el('b', { textContent: nf(w.points) }), el('span', { className: 'dim', textContent: 'pts' })),
-    el('div', { className: 'gpick' },
-      el('button', { onclick: () => openGame('slots') }, el('span', { textContent: '🎰' }), 'Loot slots', el('small', { textContent: 'Line up DayZ loot' })),
-      el('button', { onclick: () => openGame('crates') }, el('span', { textContent: '📦' }), 'Airdrop crates', el('small', { textContent: 'Pick 1 of 3 crates' }))),
-    el('button', { style: 'width:100%;margin-top:6px', disabled: left > 0, onclick: claimAirdrop,
-      textContent: left > 0 ? `🪂 Next airdrop in ${hrs ? hrs + 'h ' : ''}${mins}m` : `🪂 Claim airdrop · +${AIRDROP} points` })));
+    el('div', { className: 'ghero' }, el('span', { className: 'gico', textContent: '🎒' }),
+      el('div', {}, el('b', { textContent: 'Loot merge' }), el('div', { className: 'dim', textContent: 'Loot drops onto the map around towns. Drag an item onto an identical one to upgrade it.' }))),
+    el('div', { className: 'gstats' }, stat(nf(mine.merges), 'upgrades'), stat(nf(mine.points), 'points'),
+      stat(mine.best_item ? emojiOf(mine.best_item) || '—' : '—', 'best item', mine.best_item || '')),
+    el('button', { className: 'primary gbig', textContent: mergeOn ? '■ Stop playing' : '▶ Play on the map', onclick: () => mergeOn ? mergeStop() : mergeStart() }),
+    el('div', { className: 'dim', style: 'margin-top:6px;font-size:11.5px;text-align:center', textContent: gamesLocal()
+      ? (ONLINE ? 'Practice game, saved in this browser only' : 'Saved in this browser') : `Playing for the ${server.name} leaderboard` }),
+    chains,
+    el('details', { className: 'paytable' }, el('summary', { textContent: 'How points work' }), rules,
+      el('p', { className: 'dim', style: 'margin:6px 0 0', textContent: `Loot drops every 5 seconds, up to ${MERGE.MAX} items at once. Up to ${MERGE.BANK} pile up while you're away. On a phone, tap two identical items to merge them.` }))));
   if (ONLINE && gamesDb === false) {
-    box.append(el('div', { className: 'card' }, el('h3', { textContent: 'Score sheet not set up yet' }),
-      el('p', { className: 'dim', textContent: isAdmin() ? 'Run db/supabase-v4-games.sql in Supabase → SQL Editor to turn on the server score sheet. Until then, games use practice points saved in this browser.'
-        : 'A server admin needs to switch on the score sheet. Until then, games use practice points saved in this browser.' })));
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: 'Leaderboard not set up yet' }),
+      el('p', { className: 'dim', textContent: isAdmin() ? 'Run db/supabase-v4-games.sql in Supabase → SQL Editor to turn on the server leaderboard. Until then, games are practice games saved in this browser.'
+        : 'A server admin needs to switch on the leaderboard. Until then, games are practice games saved in this browser.' })));
     return;
   }
   if (!ONLINE) {
-    box.append(el('h2', { textContent: 'Score sheet' }),
-      el('p', { className: 'dim', textContent: 'Log in and join a server to play for your server\'s score sheet. Results are rolled by the server, so the sheet can be trusted by bots and server apps.' }),
+    box.append(el('h2', { textContent: 'Leaderboard' }),
+      el('p', { className: 'dim', textContent: 'Log in and join a server to play for your server\'s leaderboard. The server checks every merge, so the board can be trusted by bots and server apps.' }),
       HAS_SB && !me ? el('button', { className: 'primary', textContent: 'Log in', onclick: () => showAuth('login') }) : '');
     return;
   }
-  const rows = [...wallets.values()].sort((a, b) => b.points - a.points || (a.updated_at < b.updated_at ? -1 : 1));
-  box.append(el('h2', {}, 'Score sheet ', el('span', { className: 'secn', textContent: rows.length ? '· ' + rows.length : '' }),
-    isAdmin() && rows.length ? el('button', { className: 'linkbtn h2btn', textContent: 'reset', title: 'Wipe everyone\'s points back to ' + START_POINTS, onclick: async () => {
-      if (!confirm(`Reset the score sheet for ${server.name}? Everyone goes back to ${START_POINTS} points. This can't be undone.`)) return;
-      if (await rpc('reset_scores', { p_server: server.id }, 'Score sheet reset')) { wallets.clear(); refreshGames(); }
+  const rows = [...players.values()].filter(r => r.merges > 0 || r.points > 0)
+    .sort((a, b) => b.merges - a.merges || b.points - a.points || (a.updated_at < b.updated_at ? -1 : 1));
+  box.append(el('h2', {}, 'Most upgrades ', el('span', { className: 'secn', textContent: rows.length ? '· ' + rows.length : '' }),
+    isAdmin() && rows.length ? el('button', { className: 'linkbtn h2btn', textContent: 'reset', title: 'Wipe everyone\'s upgrades, points and loot', onclick: async () => {
+      if (!confirm(`Reset the Loot merge leaderboard for ${server.name}? Everyone's upgrades, points and loot are wiped. This can't be undone.`)) return;
+      if (await rpc('reset_scores', { p_server: server.id }, 'Leaderboard reset')) { players.clear(); refreshGames(); if (mergeOn) mergeSync(); }
     } }) : ''));
-  if (!rows.length) box.append(el('div', { className: 'empty', textContent: 'Nobody has played on this server yet. Your first game puts you on the sheet.' }));
+  if (!rows.length) box.append(el('div', { className: 'empty', textContent: 'Nobody has merged anything on this server yet. Your first upgrade puts you on the board.' }));
   rows.forEach((r, i) => {
     const fm = fmembers.find(x => x.user_id === r.user_id), fac = fm && factions.get(fm.faction_id);
     box.append(el('div', { className: 'srow' + (r.user_id === me.id ? ' me' : '') },
       el('span', { className: 'rk', textContent: ['🥇', '🥈', '🥉'][i] || i + 1 }),
       el('span', { className: 'nm' }, uname(r.user_id) + (r.user_id === me.id ? ' (you)' : ''), fac?.tag ? el('span', { className: 'dim', textContent: ` [${fac.tag}]` }) : ''),
-      el('span', { className: 'pt', textContent: nf(r.points) }),
-      el('span', { className: 'bw', textContent: `${nf(r.plays)} game${r.plays === 1 ? '' : 's'}${r.best_win ? ` · best win ${nf(r.best_win)}${r.best_game ? ' on ' + (GAME_NAMES[r.best_game] || r.best_game).replace(/^\S+\s/, '').toLowerCase() : ''}` : ''}` })));
+      el('span', { className: 'pt', textContent: `⬆ ${nf(r.merges)}` }),
+      el('span', { className: 'bw', textContent: [`${nf(r.points)} pts`, r.best_item ? `best ${emojiOf(r.best_item)} ${r.best_item}` : '', r.helis ? `🚁 ×${r.helis}` : ''].filter(Boolean).join(' · ') })));
   });
-  box.append(el('p', { className: 'dim', style: 'margin-top:12px' }, 'Bots and server apps can read this sheet and give or take points, e.g. reward kills or trade points for in-game loot. ',
+  box.append(el('p', { className: 'dim', style: 'margin-top:12px' }, 'Bots and server apps can read this leaderboard and give or take points, e.g. reward kills or trade points for in-game loot. ',
     el('a', { href: 'api.html#games', target: '_blank', className: 'linkbtn', textContent: 'API ↗' })));
 }
-async function gamePlay(game, bet, pick = 0) {
-  if (gamesLocal()) {
-    const w = myWallet();
-    if (w.points < bet) { toast('Not enough points. Grab the airdrop or wait for it to come back.'); return null; }
-    let res, win;
-    if (game === 'slots') { const reels = [0, 0, 0].map(() => rollW(SLOT_SYMS.map(s => s.w))); win = slotWin(reels, bet); res = { reels }; }
-    else { const crates = [0, 0, 0].map(() => rollW(CRATE_LOOT.map(c => c.w))); win = Math.floor(bet * CRATE_LOOT[crates[pick]].m); res = { crates, pick }; }
-    Object.assign(w, { points: w.points - bet + win, plays: w.plays + 1, wagered: w.wagered + bet, won: w.won + win, best_win: Math.max(w.best_win, win) });
-    ls.set('fm:gw', w);
-    return { ...res, game, bet, win, points: w.points };
+
+// --- playing on the map ---
+map.createPane('lootPane').style.zIndex = 640;   // above markers, below popups
+const lootLayer = L.layerGroup();
+const lootMk = new Map();   // item id -> marker
+let mergeOn = false, mg = null, mSel = null, mTarget = null, mPoll = null, mTick = null, mQueue = Promise.resolve(), mpos = {};
+const posKey = () => `fm:mpos:${gamesLocal() ? 'local' : server.id}:${MAPDEF.id}`;
+const lootDiv = m => m.getElement()?.firstChild;
+function lootIcon(it, cls = '') {
+  const [e, n] = itemOf(it);
+  return L.divIcon({ className: 'lootwrap', iconSize: [44, 44], iconAnchor: [22, 22],
+    html: `<div class="loot t${Math.min(it.t, 6)}${it.s ? ' shiny' : ''} ${cls}" title="${n}${it.s ? ' (shiny: ×2 points)' : ''}"><span>${e}</span><i>${it.t >= 6 ? '★' : it.t + 1}</i></div>` });
+}
+function addLoot(it, p, cls) {
+  const m = L.marker(ll(p), { icon: lootIcon(it, cls), draggable: true, pane: 'lootPane', autoPan: true, keyboard: false, riseOnHover: true, bubblingMouseEvents: false });
+  m.item = it;
+  m.on('dragstart', () => { lootSelect(null); lootHi(m); lootDiv(m)?.classList.add('held'); });
+  m.on('drag', () => {
+    const t = nearestMatch(m);
+    if (t !== mTarget) { mTarget && lootDiv(mTarget)?.classList.remove('target'); mTarget = t; t && lootDiv(t)?.classList.add('target'); }
+  });
+  m.on('dragend', () => {
+    const t = mTarget; mTarget = null; lootHi(null); m.dragAt = Date.now();
+    lootDiv(m)?.classList.remove('held'); t && lootDiv(t)?.classList.remove('target');
+    if (t) doMerge(t, m); else { mpos[it.i] = xz(m.getLatLng()); savePos(); }
+  });
+  m.on('click', () => {
+    if (Date.now() - (m.dragAt || 0) < 400) return;
+    if (mSel && mSel !== m && sameItem(mSel.item, it)) { const a = mSel; lootSelect(null); doMerge(m, a); }   // tap two identical items
+    else lootSelect(mSel === m ? null : m);
+  });
+  lootMk.set(it.i, m); m.addTo(lootLayer);
+  return m;
+}
+function removeLoot(m) { lootLayer.removeLayer(m); lootMk.delete(m.item.i); if (mSel === m) mSel = null; }
+function lootHi(src) {
+  for (const m of lootMk.values()) {
+    const d = lootDiv(m); if (!d) continue;
+    d.classList.toggle('match', !!src && m !== src && sameItem(m.item, src.item));
+    d.classList.toggle('dim', !!src && m !== src && !sameItem(m.item, src.item));
   }
-  const { data, error } = await sb.rpc('play_game', { p_server: server.id, p_game: game, p_bet: bet, p_pick: pick });
-  if (error) { toast(gameErr(error)); return null; }
-  const w = myWallet();
-  wallets.set(me.id, { ...w, points: data.points, plays: w.plays + 1, wagered: w.wagered + bet, won: w.won + data.win,
-    best_win: Math.max(w.best_win, data.win), best_game: data.win > w.best_win ? game : w.best_game, updated_at: new Date().toISOString() });
-  return data;
 }
-function closeGame() { gameOpen = null; $('game').classList.remove('show'); if ($('paneGames').classList.contains('show')) renderGames(); }
-$('gClose').onclick = closeGame;
-$('game').addEventListener('mousedown', e => { if (e.target === $('game') && !gameBusy) closeGame(); });
-let gameKey = () => {};
-function betPicker() {
-  let bet = Math.min(ls.get('fm:gbet', 10), Math.max(BETS[0], myWallet().points));
-  if (!BETS.includes(bet)) bet = [...BETS].reverse().find(b => b <= bet) || BETS[0];
-  const row = el('div', { className: 'gbets' }, el('span', { textContent: 'Bet' }));
-  for (const b of BETS) row.append(el('button', { type: 'button', className: b === bet ? 'on' : '', textContent: b, onclick: e => {
-    if (gameBusy) return; bet = b; ls.set('fm:gbet', b); for (const x of row.querySelectorAll('button')) x.classList.toggle('on', x === e.currentTarget);
-  } }));
-  return { row, get: () => bet };
+function lootSelect(m) { mSel && lootDiv(mSel)?.classList.remove('held'); mSel = m; lootHi(m); m && lootDiv(m)?.classList.add('held'); }
+function nearestMatch(m) {
+  const p = map.latLngToContainerPoint(m.getLatLng()); let best = null, bd = 46;
+  for (const o of lootMk.values()) if (o !== m && sameItem(o.item, m.item)) { const d = p.distanceTo(map.latLngToContainerPoint(o.getLatLng())); if (d < bd) { bd = d; best = o; } }
+  return best;
 }
-function openGame(game) {
-  gameOpen = game; gameBusy = false;
-  $('gTitle').textContent = GAME_NAMES[game];
-  $('gPts').textContent = nf(myWallet().points) + ' pts';
-  const body = $('gBody'); body.replaceChildren();
-  const bets = betPicker(), msg = el('div', { className: 'gmsg' });
-  const setMsg = (t, cls = '') => { msg.textContent = t; msg.className = 'gmsg ' + cls; };
-  if (game === 'slots') {
-    const reels = [0, 1, 2].map(() => el('div', { className: 'reel' }, el('span', { textContent: SLOT_SYMS[1 + Math.floor(Math.random() * 8)].e })));
-    const names = el('div', { className: 'gname' });
-    const spin = el('button', { className: 'primary gbig', textContent: 'Spin' });
-    const go = async () => {
-      if (gameBusy) return; gameBusy = true; spin.disabled = true; setMsg('');
-      const stopped = [false, false, false];
-      names.replaceChildren();
-      reels.forEach(r => { r.classList.remove('hit', 'land'); r.classList.add('spin'); });
-      const tick = setInterval(() => reels.forEach((r, i) => { if (!stopped[i]) r.firstChild.textContent = SLOT_SYMS[Math.floor(Math.random() * SLOT_SYMS.length)].e; }), 70);
-      const [res] = await Promise.all([gamePlay('slots', bets.get()), sleep(550)]);
-      if (!res) { clearInterval(tick); reels.forEach(r => r.classList.remove('spin')); gameBusy = false; spin.disabled = false; return; }
-      for (let i = 0; i < 3; i++) {
-        await sleep(i ? 300 : 120);
-        stopped[i] = true; const r = reels[i];
-        r.firstChild.textContent = SLOT_SYMS[res.reels[i]].e; r.classList.remove('spin'); void r.offsetWidth; r.classList.add('land');
-      }
-      clearInterval(tick);
-      names.replaceChildren(...res.reels.map(i => el('span', { textContent: SLOT_SYMS[i].n })));
-      const [a, b, c] = res.reels, three = a === b && b === c;
-      const hitSym = three ? a : a === b || a === c ? a : b === c ? b : -1;
-      if (res.win > 0) reels.forEach((r, i) => { if (res.reels[i] === hitSym) r.classList.add('hit'); });
-      const s = SLOT_SYMS[hitSym];
-      if (res.win > 0) setMsg(`${three ? 'Three' : 'Two'} × ${s.e} ${s.n} · +${nf(res.win)}`, 'win' + (res.win >= res.bet * 10 ? ' big' : ''));
-      else setMsg(three && a === 0 ? '🧟 A horde. Nothing this time.' : hitSym === 0 ? '🧟 Infected. Nothing this time.' : 'No match');
-      $('gPts').textContent = nf(res.points) + ' pts';
-      gameBusy = false; spin.disabled = false; spin.focus();
-    };
-    spin.onclick = go; gameKey = go;
-    const pay = el('table');
-    for (const s of SLOT_SYMS.slice().reverse()) if (s.p3) pay.append(el('tr', {}, el('td', { textContent: `${s.e} ${s.n}` }), el('td', { textContent: `3 × ${s.p3}×` }), el('td', { className: 'dim', textContent: `2 × ${s.p2}×` })));
-    pay.append(el('tr', {}, el('td', { textContent: '🧟 Infected' }), el('td', { className: 'dim', colSpan: 2, textContent: 'never pays' })));
-    body.append(el('div', { className: 'reels' }, ...reels), names, msg, bets.row, spin,
-      el('details', { className: 'paytable' }, el('summary', { textContent: 'What pays (times your bet)' }), pay,
-        el('p', { className: 'dim', style: 'margin:6px 0 0', textContent: 'Any two the same pays the smaller amount. Space spins.' })));
-  } else {
-    const crates = [0, 1, 2].map(i => el('button', { type: 'button', className: 'crate' }, el('span', { className: 'ce', textContent: '📦' }), el('span', { textContent: `Crate ${i + 1}` })));
-    const again = el('button', { className: 'primary gbig', textContent: 'Drop new crates', style: 'display:none' });
-    const reset = () => {
-      crates.forEach((c, i) => { c.className = 'crate'; c.disabled = false; c.replaceChildren(el('span', { className: 'ce', textContent: '📦' }), el('span', { textContent: `Crate ${i + 1}` })); });
-      again.style.display = 'none'; setMsg('Pick a crate');
-    };
-    const pick = async i => {
-      if (gameBusy) return; gameBusy = true;
-      crates.forEach(c => c.disabled = true); crates[i].classList.add('shake'); setMsg('');
-      const [res] = await Promise.all([gamePlay('crates', bets.get(), i), sleep(700)]);
-      crates[i].classList.remove('shake');
-      if (!res) { crates.forEach(c => c.disabled = false); gameBusy = false; return; }
-      res.crates.forEach((li, j) => {
-        const L0 = CRATE_LOOT[li], c = crates[j];
-        c.classList.add('open'); if (j === res.pick) c.classList.add('picked');
-        c.replaceChildren(el('span', { className: 'ce', textContent: L0.e }), el('span', { textContent: L0.n }), el('b', { textContent: L0.m ? `${L0.m}×` : '—' }));
-      });
-      const got = CRATE_LOOT[res.crates[res.pick]];
-      setMsg(res.win > 0 ? `${got.e} ${got.n} · +${nf(res.win)}` : `${got.e} Empty. Nothing this time.`, res.win > res.bet ? 'win' + (res.win >= res.bet * 5 ? ' big' : '') : '');
-      $('gPts').textContent = nf(res.points) + ' pts';
-      again.style.display = ''; again.focus(); gameBusy = false;
-    };
-    crates.forEach((c, i) => c.onclick = () => pick(i));
-    again.onclick = reset; gameKey = () => { if (again.style.display !== 'none') reset(); };
-    const pay = el('table');
-    for (const L0 of CRATE_LOOT.slice().reverse()) pay.append(el('tr', {}, el('td', { textContent: `${L0.e} ${L0.n}` }), el('td', { textContent: L0.m ? `${L0.m}×` : 'nothing' }), el('td', { className: 'dim', textContent: `${L0.w}%` })));
-    body.append(el('div', { className: 'crates' }, ...crates), msg, bets.row, again,
-      el('details', { className: 'paytable' }, el('summary', { textContent: 'What can be inside (times your bet, chance)' }), pay));
-    reset();
-  }
-  $('game').classList.add('show');
+// where new loot lands: mostly around towns in view, otherwise anywhere in view
+function dropSpot() {
+  const b = map.getBounds();
+  const x0 = Math.max(0, b.getWest()), x1 = Math.min(W, b.getEast()), z0 = Math.max(0, b.getSouth()), z1 = Math.min(W, b.getNorth());
+  const px = (x1 - x0) * .12, pz = (z1 - z0) * .14, jit = Math.min(x1 - x0, z1 - z0) * .07;
+  const towns = REF.towns.filter(t => t[2] > x0 + px && t[2] < x1 - px && t[3] > z0 + pz && t[3] < z1 - pz);
+  if (towns.length && rnd() < .8) { const t = towns[Math.floor(rnd() * towns.length)]; return [clampW(Math.round(t[2] + (rnd() * 2 - 1) * jit)), clampW(Math.round(t[3] + (rnd() * 2 - 1) * jit))]; }
+  return [Math.round(x0 + px + rnd() * Math.max(0, x1 - x0 - 2 * px)), Math.round(z0 + pz + rnd() * Math.max(0, z1 - z0 - 2 * pz))];
 }
+function placeNew(it) { const p = dropSpot(); mpos[it.i] = p; addLoot(it, p, 'drop'); }
+function savePos() { const keep = {}; for (const id of lootMk.keys()) if (mpos[id]) keep[id] = mpos[id]; mpos = keep; ls.set(posKey(), keep); }
+// make the markers match a board from the server (or the practice copy)
+function reconcile(s) {
+  const ids = new Set(s.board.map(e => e.i));
+  for (const m of [...lootMk.values()]) if (!ids.has(m.item.i)) removeLoot(m);
+  for (const it of s.board) if (!lootMk.has(it.i)) mpos[it.i] ? addLoot(it, mpos[it.i]) : placeNew(it);
+  mg = { ...mg, ...s }; savePos(); hud();
+}
+// everything that talks to the server runs one at a time, so a drop check can't undo a merge that finished after it
+const queued = fn => (mQueue = mQueue.then(fn).catch(e => console.warn('loot merge:', e)));
+const mergeSync = () => queued(async () => { const s = await mergeLoad(); if (s && mergeOn) reconcile(s); });
+function floatAt(p, html) {
+  const f = L.marker(ll(p), { icon: L.divIcon({ className: 'lootfloat', iconSize: [0, 0], html }), pane: 'lootPane', interactive: false, keyboard: false }).addTo(lootLayer);
+  setTimeout(() => lootLayer.removeLayer(f), 1700);
+}
+function doMerge(t, s) {
+  const p = xz(t.getLatLng());
+  s.setLatLng(t.getLatLng()); lootDiv(s)?.classList.add('going'); lootDiv(t)?.classList.add('going');
+  queued(async () => {
+    const r = mergeOn && await mergeDo(t.item.i, s.item.i);
+    if (!mergeOn) return;
+    if (!r) { lootDiv(s)?.classList.remove('going'); lootDiv(t)?.classList.remove('going'); const s0 = await mergeLoad(); if (s0) reconcile(s0); return; }
+    removeLoot(t); removeLoot(s);
+    if (r.item) { mpos[r.item.i] = p; addLoot(r.item, p, 'pop'); }
+    for (const it of r.spawned || []) placeNew(it);
+    const lines = [r.combo ? `🔥 combo ×${1 + .25 * r.combo}` : '', r.shiny ? '✨ shiny ×2' : '', r.bonus ? `🆕 first ${r.item ? itemOf(r.item)[1].toLowerCase() : 'clear'} +${r.bonus}` : ''].filter(Boolean);
+    floatAt(p, `<div><b class="${r.item ? '' : 'huge'}">${r.item ? '' : '💥 '}+${nf(r.gain)}</b>${r.item ? `<small>${itemOf(r.item)[0]} ${itemOf(r.item)[1]}</small>` : '<small>Heli crash cleared!</small>'}${lines.map(l => `<small>${l}</small>`).join('')}</div>`);
+    if (r.item?.t === 6) toast('🚁 Heli crash loot! Merge two of them for a big bonus.');
+    mg.board = mg.board.filter(e => e.i !== t.item.i && e.i !== s.item.i).concat(r.item ? [r.item] : [], r.spawned || []);
+    Object.assign(mg, { points: r.points, merges: r.merges, combo: r.combo, comboAt: Date.now() });
+    if (!gamesLocal()) {   // the live update brings the rest (best item, helis)
+      const row = players.get(me.id) || { user_id: me.id, helis: 0, best_tier: 0, best_item: null };
+      const nt = r.item ? r.item.t : 7;
+      players.set(me.id, { ...row, points: r.points, merges: r.merges, updated_at: new Date().toISOString(),
+        ...(nt > row.best_tier || !row.best_item ? { best_tier: nt, best_item: r.name } : {}) });
+    }
+    savePos(); hud(); refreshGames();
+  });
+}
+function hud() {
+  if (!mergeOn || !mg) return;
+  const h = $('mhud').offsetHeight + 'px';   // keeps toasts above the bar, however tall it wraps
+  if (document.body.style.getPropertyValue('--hudH') !== h) document.body.style.setProperty('--hudH', h);
+  $('mhStats').textContent = `⬆ ${nf(mg.merges)} · ${nf(mg.points)} pts · ${mg.board.length}/${MERGE.MAX} loot`;
+  const left = MERGE.COMBO_MS - (Date.now() - (mg.comboAt || 0)), c = $('mhCombo');
+  c.classList.toggle('on', left > 0);
+  if (left > 0) { c.textContent = `🔥 next ×${1 + .25 * Math.min((mg.combo || 0) + 1, 8)}`; c.style.setProperty('--p', Math.max(0, left - 250) / MERGE.COMBO_MS); }
+}
+async function mergeStart() {
+  if (mergeOn) return;
+  if (ONLINE) await gamesReady();
+  const s = await mergeLoad(); if (!s) return;
+  mergeOn = true; mg = { ...s, comboAt: 0 };
+  document.body.classList.add('merging'); document.body.classList.remove('open');
+  if (infoId) closeInfo();
+  mpos = ls.get(posKey(), {}); lootLayer.addTo(map);
+  for (const it of s.board) mpos[it.i] ? addLoot(it, mpos[it.i], 'drop') : placeNew(it);
+  savePos();
+  $('mhud').classList.add('show'); hud();
+  const b = map.getBounds(), away = s.board.filter(it => !b.contains(ll(mpos[it.i]))).length;
+  toast(away ? `${away} of your loot is off-screen. 📍 Gather here pulls it into view.` : 'Drag an item onto an identical one to upgrade it.');
+  mPoll = setInterval(() => { if (mg.board.length < MERGE.MAX) mergeSync(); }, MERGE.SPAWN_MS);
+  mTick = setInterval(hud, 250);
+  refreshGames();
+}
+function mergeStop() {
+  if (!mergeOn) return;
+  mergeOn = false; clearInterval(mPoll); clearInterval(mTick);
+  lootSelect(null); lootLayer.clearLayers(); lootLayer.remove(); lootMk.clear(); mTarget = null;
+  $('mhud').classList.remove('show'); document.body.classList.remove('merging');
+  refreshGames();
+}
+$('mhStop').onclick = mergeStop;
+$('mhGather').onclick = () => {
+  for (const m of lootMk.values()) { const p = dropSpot(); mpos[m.item.i] = p; m.setLatLng(ll(p)); }
+  savePos();
+};
 
 // ---------- export / import ----------
 $('btnExport').onclick = () => {
