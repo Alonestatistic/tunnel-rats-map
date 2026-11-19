@@ -10,7 +10,11 @@
     --bg: #12100d; --panel: #1b1814; --panel2: #25211b; --line: #3a342a;
     --text: #ece5d8; --dim: #a39a88; --accent: #e0a13a; --danger: #e5534b; --ok: #56b36a; --gps: #2ee6ff;
     --ts: 1;
+    color-scheme: dark; /* native scrollbars, dropdowns and date pickers follow the theme */
   }
+  :root[data-theme="light"] { color-scheme: light; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+  #scroll, #actList, #results, #ctx, .flaggrid, #annText { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
   /* themes: set on <html data-theme> from Settings */
   :root[data-theme="light"] {
     --bg: #f4f1ea; --panel: #ffffff; --panel2: #ece7dc; --line: #d3cbbb;
@@ -127,9 +131,11 @@
   #search::-webkit-search-cancel-button { display: none; } /* the app has its own ✕ */
   #qf { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
   #qf button { font-size: 11.5px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--text, inherit); box-shadow: 0 2px 6px #0006; cursor: pointer; }
-  #qf button:hover { border-color: #e2a93b; }
-  #qf button.on { background: #e2a93b; border-color: #e2a93b; color: #111; font-weight: 600; }
+  #qf button:hover { border-color: var(--accent); }
+  #qf button.on { background: var(--accent); border-color: var(--accent); color: #111; font-weight: 600; }
+  #qf button.zero:not(.on) { opacity: .6; }
   #qf .n { opacity: .7; margin-left: 3px; font-weight: 400; }
+  #qf:empty { display: none; }
   #results { display: none; margin-top: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px; max-height: min(60vh, 420px); overflow-y: auto; box-shadow: 0 6px 20px #000a; }
   #results.show { display: block; }
   #results .item.sel { background: var(--panel2); }
@@ -153,11 +159,16 @@
   #hint { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); z-index: 1003; background: var(--accent); color: #1a1408; font-weight: 600; padding: 7px 14px; border-radius: 99px; display: none; max-width: 90%; text-align: center; box-shadow: 0 2px 10px #0008; }
   #hint button { margin-left: 8px; padding: 2px 8px; background: #1a1408; color: var(--text); border: 0; font-size: 12px; }
   #coords { position: absolute; left: 12px; bottom: 12px; z-index: 1000; background: #000b; padding: 4px 10px; border-radius: 6px; font-variant-numeric: tabular-nums; font-size: 13px; pointer-events: none; }
+  #coords:empty { display: none; }
+  /* log in / create account read as tabs, not as a second Log in button */
+  #authSeg { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+  #authSeg button { border: 0; background: none; color: var(--dim); }
+  #authSeg button.on { background: var(--panel2); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px #0005; }
   #tools { position: absolute; right: 10px; top: 84px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
   #tools button { background: var(--panel); font-size: 12px; box-shadow: 0 1px 5px #0006; }
   #tools button.on { background: var(--accent); }
   #announce { position: absolute; top: 88px; left: 50%; transform: translateX(-50%); z-index: 1001; width: min(460px, calc(100% - 240px)); display: none; gap: 8px; align-items: flex-start;
-    background: color-mix(in srgb, var(--accent) 16%, var(--panel)); border: 1px solid #e2a93b; border-radius: 10px; padding: 8px 10px; box-shadow: 0 6px 20px #000a; font-size: 13px; }
+    background: color-mix(in srgb, var(--accent) 16%, var(--panel)); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 10px; box-shadow: 0 6px 20px #000a; font-size: 13px; }
   #announce.show { display: flex; }
   #announce .at { flex: 1; min-width: 0; }
   #annText { white-space: pre-wrap; word-break: break-word; max-height: 6.5em; overflow-y: auto; }
@@ -229,7 +240,7 @@
   #ctx .cs button.on { background: var(--accent); border-color: var(--accent); color: #1a1408; }
   .leaflet-tooltip.dimlbl { background: rgba(0,0,0,.72); border: 0; color: #fff; font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 4px; box-shadow: none; pointer-events: none; }
   .leaflet-tooltip.dimlbl::before { display: none; }
-  .leaflet-tooltip.dimlbl.live { background: #e2a93b; color: #111; }
+  .leaflet-tooltip.dimlbl.live { background: var(--accent); color: #111; }
   #mselbar { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); z-index: 1001; display: none; align-items: center; gap: 6px;
     background: var(--panel); border: 1px solid #5fd3ff; border-radius: 10px; padding: 6px 8px; box-shadow: 0 6px 20px rgba(0,0,0,.5); white-space: nowrap; max-width: calc(100% - 24px); overflow-x: auto; }
   #mselbar.show { display: flex; }
@@ -241,8 +252,8 @@
   #mselbar .selc input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
   #presets, #tpls, #bms { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
   :is(#presets, #tpls, #bms) .pz { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line, #444); background: transparent; color: inherit; cursor: pointer; }
-  :is(#presets, #tpls, #bms) .pz:hover { border-color: #e2a93b; }
-  :is(#presets, #tpls, #bms) .pz.on { background: #e2a93b; color: #111; border-color: #e2a93b; font-weight: 600; }
+  :is(#presets, #tpls, #bms) .pz:hover { border-color: var(--accent); }
+  :is(#presets, #tpls, #bms) .pz.on { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; }
   :is(#presets, #tpls, #bms) .pz .x { opacity: .55; margin-left: 2px; padding: 0 2px; }
   :is(#presets, #tpls, #bms) .pz .x:hover { opacity: 1; }
   #ctx .cc { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 6px 5px; }
@@ -332,10 +343,11 @@
     /* drawing hint: at the bottom on phones, clear of the zoom / layer / tool buttons */
     #hint { top: auto; bottom: 34px; left: 10px; right: 10px; transform: none; max-width: none; border-radius: 14px; }
     /* item info and the edit form become a bottom sheet so the map stays visible above them */
-    body.sheet #side { inset: auto 0 0 0; width: 100%; height: var(--sheetH, 52vh); transform: none; transition: height .2s; border-right: 0; border-top: 1px solid var(--line);
+    body.sheet #side { inset: auto 0 0 0; width: 100%; height: min(var(--sheetH, 52vh), var(--fitH, 100vh)); transform: none; transition: height .2s; border-right: 0; border-top: 1px solid var(--line);
       border-radius: 14px 14px 0 0; box-shadow: 0 -8px 30px #000a; }
     body.sheet #side header, body.sheet #side footer { display: none; }
     body.sheet #menu { left: 10px; }
+    body.sheet:has(#form.show) #menu { display: none; } /* mid-edit: Save / Cancel are the way out */
     body.sheet #sheetGrip { display: block; }
     body.sheet #mselbar, body.sheet #miniWrap { display: none; }
   }
@@ -551,7 +563,7 @@
   <div id="act"><div class="ah"><b>Recent activity</b><button id="actClose" class="linkbtn" aria-label="Close">✕</button></div><div id="actList"></div></div>
   <div id="selbar" class="bar"><span id="selText"></span><button id="selRoute" class="primary">Make route</button><button id="selClear">Clear</button></div>
   <div id="navbar" class="bar"><span id="navText"></span><button id="navSwap">⇄ Swap</button><button id="navSave" class="primary">Save as route</button><button id="navClear">Clear</button></div>
-  <div id="coords">– / –</div>
+  <div id="coords"></div>
   <div id="ctx" role="menu"></div>
   <div id="hov" aria-hidden="true"></div>
   <div id="mselbar">
@@ -856,6 +868,7 @@ if (ls.get('fm:mini', true) === false) { $('miniWrap').classList.add('off'); $('
 L.DomEvent.disableClickPropagation($('miniWrap')); L.DomEvent.disableScrollPropagation($('miniWrap'));
 L.rectangle(worldBounds, { color: '#e0a13a', weight: 1, fill: false, interactive: false, opacity: .5 }).addTo(map);
 map.on('mousemove', e => { $('coords').textContent = fmt(xz(e.latlng)); });
+map.on('mouseout', () => { $('coords').textContent = ''; });
 
 const grid = L.layerGroup();
 for (let v = 0; v <= W; v += 1000) {
@@ -1093,7 +1106,7 @@ map.on('click', e => {
     const box = el('div', { className: 'pop' },
       el('h3', { textContent: refText(pt) }),
       el('div', { className: 'meta', textContent: fmt(p) }),
-      el('div', { className: 'row' }, el('button', { textContent: 'Copy coords', onclick: () => copy(fmt(p)) }),
+      el('div', { className: 'row' }, el('button', { textContent: '📋 Copy coords', onclick: () => copy(fmt(p)) }),
         el('button', { textContent: '🧭 GPS here', onclick: () => { map.closePopup(); navTo(p); } })));
     L.popup({ offset: [0, -4] }).setLatLng(ll(p)).setContent(box).openOn(map);
     return;
@@ -1167,10 +1180,11 @@ const QF = [
 const qf = new Set();
 function renderQF() {
   const box = $('qf'); box.replaceChildren();
+  if (!feats.size && !qf.size) return; // nothing on the map yet: no chips full of zeros
   for (const q of QF) {
     if (q.online && !ONLINE) { qf.delete(q.id); continue; }
     const n = [...feats.values()].filter(f => !hidden.has(catOf(f).id) && q.test(f)).length;
-    box.append(el('button', { type: 'button', className: qf.has(q.id) ? 'on' : '', title: qf.has(q.id) ? 'Click to turn off' : 'Show only these',
+    box.append(el('button', { type: 'button', className: (qf.has(q.id) ? 'on' : '') + (n ? '' : ' zero'), title: qf.has(q.id) ? 'Click to turn off' : 'Show only these',
       onclick: () => { qf.has(q.id) ? qf.delete(q.id) : qf.add(q.id); renderAll(); } }, q.name, el('span', { className: 'n', textContent: n })));
   }
 }
@@ -1298,7 +1312,7 @@ function hoverCard(f) {
   return box;
 }
 function hoverShow(id, e) {
-  if (tool || $('ctx').style.display === 'block' || ls.get('fm:hover', true) === false) return;
+  if (tool || id === infoId || $('ctx').style.display === 'block' || ls.get('fm:hover', true) === false) return; // no preview of what's already open
   clearTimeout(hovT); hovId = id;
   hovT = setTimeout(() => {
     const f = feats.get(id); if (!f || hovId !== id) return;
@@ -1555,7 +1569,7 @@ let infoId = null;
 function openInfo(id) {
   if (!feats.has(id)) return;
   closeForm(true);
-  infoId = id; renderInfo();
+  infoId = id; renderInfo(); hoverHide();
   $('info').classList.add('show'); $('scroll').scrollTop = 0;
   document.body.classList.add('open');
   revealAboveSheet(feats.get(id));
@@ -1600,8 +1614,8 @@ function renderInfo() {
   if (canEdit(f)) row.append(el('button', { textContent: '✏️ Edit', onclick: () => startEdit(f.id) }));
   row.append(el('button', { textContent: '🧭 GPS here', onclick: () => navTo(ctr) }),
     el('button', { textContent: '🎯 Zoom', onclick: () => zoomTo(f) }),
-    el('button', { textContent: 'Copy coords', onclick: () => copy(fmt(ctr)) }));
-  if (canEdit(f)) row.append(el('button', { className: 'danger', textContent: 'Delete', onclick: () => del(f.id) }));
+    el('button', { textContent: '📋 Copy coords', onclick: () => copy(fmt(ctr)) }));
+  if (canEdit(f)) row.append(el('button', { className: 'danger', textContent: '🗑 Delete', onclick: () => del(f.id) }));
   box.append(row);
 
   if (['base', 'territory', 'ally', 'enemy'].includes(f.cat)) {
@@ -2444,7 +2458,11 @@ $('tMeasure').onclick = () => {
 };
 $('tGrid').onclick = () => { const on = !map.hasLayer(grid); on ? grid.addTo(map) : grid.remove(); $('tGrid').classList.toggle('on', on); ls.set('fm:grid', on); };
 $('tLabels').onclick = () => { labelsOn = !labelsOn; ls.set('fm:labels', labelsOn); $('tLabels').classList.toggle('on', labelsOn); renderAll(); };
-$('menu').onclick = () => document.body.classList.toggle('open');
+$('menu').onclick = () => {
+  // with an item open as a bottom sheet, Menu goes back to the full menu instead of just hiding the search bar
+  if (document.body.classList.contains('sheet') && $('info').classList.contains('show')) { closeInfo(); document.body.classList.add('open'); return; }
+  document.body.classList.toggle('open');
+};
 // ---------- phones: info / form as a bottom sheet ----------
 const phone = matchMedia('(max-width: 760px)');
 function syncSheet() {
@@ -2455,6 +2473,12 @@ function syncSheet() {
 new MutationObserver(syncSheet).observe($('form'), { attributes: true, attributeFilter: ['class'] });
 new MutationObserver(syncSheet).observe($('info'), { attributes: true, attributeFilter: ['class'] });
 phone.addEventListener?.('change', syncSheet);
+// a short info card gets a short sheet, so more of the map stays visible (the edit form keeps the normal size)
+new ResizeObserver(() => {
+  const info = $('info');
+  if (info.classList.contains('show') && !$('form').classList.contains('show')) document.body.style.setProperty('--fitH', (info.offsetHeight + 60) + 'px'); // grip + padding + the Back row's margin
+  else document.body.style.removeProperty('--fitH');
+}).observe($('info'));
 // drag the grip to resize (snaps to small / half / tall); tap toggles half <-> tall
 (() => {
   const g = $('sheetGrip'), sizes = [28, 52, 88];
