@@ -93,7 +93,56 @@ Content-Type: application/json</code></pre>
   <tr><td><code>updated</code>, <code>author</code></td><td>Epoch ms and a display name. Set <code>updated</code> to <code>Date.now()</code> so open maps pick up the change.</td></tr>
 </table>
 
-<h2>4. Limits</h2>
+<h2 id="games">4. Minigames and the score sheet</h2>
+<p>Each server has a score sheet: every player gets a points wallet (starting at 1000) that they play with in the <b>Games</b> tab. Results are rolled by the database, not the browser, so the numbers can be trusted. Use these calls to tie it into your server:</p>
+<ul>
+  <li>Post the leaderboard to Discord or a server website.</li>
+  <li>Announce jackpots as they happen.</li>
+  <li>Reward things that happen in game (kills, events, playtime) with points.</li>
+  <li>Let players trade points for in-game loot: your server tool takes the points with a negative amount, then spawns the item.</li>
+</ul>
+
+<h3>api_scores: read the score sheet <span class="dim">(any key)</span></h3>
+<table>
+  <tr><th>Field</th><th>Required</th><th>Meaning</th></tr>
+  <tr><td><code>p_key</code></td><td>yes</td><td>Any key for the server</td></tr>
+  <tr><td><code>p_limit</code></td><td>no</td><td>How many players, highest points first (default 50, max 500)</td></tr>
+</table>
+<pre><code id="ex4"></code></pre>
+<pre><code>{
+  "server": { "id": "…", "name": "Badlands PvP" },
+  "players": [
+    { "username": "someuser", "faction": "Wolves", "faction_tag": "WLF", "points": 4250, "plays": 312,
+      "wagered": 15400, "won": 18650, "best_win": 1875, "best_game": "slots", "updated_at": "…" }
+  ]
+}</code></pre>
+
+<h3>api_game_log: jackpots, airdrops and point changes <span class="dim">(any key)</span></h3>
+<p>Returns up to 100 events after the id you pass, oldest first. Remember the last <code>id</code> you saw and pass it next time.</p>
+<table>
+  <tr><th><code>kind</code></th><th>When</th></tr>
+  <tr><td><code>jackpot</code></td><td>A win of 50× the bet or more</td></tr>
+  <tr><td><code>big_win</code></td><td>A win of 10× the bet or more</td></tr>
+  <tr><td><code>airdrop</code></td><td>A player claimed their free points (every 20 hours)</td></tr>
+  <tr><td><code>grant</code></td><td>Points given or taken through <code>api_give_points</code> (<code>note</code> says why)</td></tr>
+  <tr><td><code>reset</code></td><td>An admin wiped the score sheet</td></tr>
+</table>
+<pre><code id="ex5"></code></pre>
+<pre><code>[ { "id": 118, "kind": "jackpot", "game": "slots", "amount": 7500, "balance": 9120, "note": null,
+    "username": "someuser", "created_at": "…" } ]</code></pre>
+
+<h3>api_give_points: give or take points <span class="dim">(server-wide write keys only)</span></h3>
+<table>
+  <tr><th>Field</th><th>Required</th><th>Meaning</th></tr>
+  <tr><td><code>p_key</code></td><td>yes</td><td>A <b>server-wide</b> key with write access. Faction keys can't change points.</td></tr>
+  <tr><td><code>p_username</code></td><td>yes</td><td>The player's map username. They must have joined the server.</td></tr>
+  <tr><td><code>p_amount</code></td><td>yes</td><td>Positive to give, negative to take (up to ±1,000,000). Taking more than they have fails, so nothing is half-done.</td></tr>
+  <tr><td><code>p_note</code></td><td>no</td><td>Why, shown to the player and in the log, e.g. <code>"Kill: 412m Mosin"</code> or <code>"Bought: NVG"</code></td></tr>
+</table>
+<pre><code id="ex6"></code></pre>
+<p>Returns <code>{ "username": "someuser", "points": 3750 }</code>. The player sees the change live.</p>
+
+<h2>5. Limits</h2>
 <ul>
   <li>Write keys can only change markers that belong to their faction (faction keys) or <i>Whole server</i> markers (server keys).</li>
   <li>Changes appear live on everyone's open map.</li>
@@ -111,6 +160,9 @@ Content-Type: application/json</code></pre>
     `\n\n// JavaScript\nconst res = await fetch("${url}api_map", {\n  method: "POST",\n  headers: { apikey: "${key}", "Content-Type": "application/json" },\n  body: JSON.stringify({ p_key: "fmk_…" })\n});\nconst map = await res.json();`;
   document.getElementById('ex2').textContent = curl('api_upsert', { p_key: 'fmk_…', p_vis: 'server', p_feature: { id: 'bot-trader-1', kind: 'marker', cat: 'trader', name: 'Black market', pos: [9630, 4080], updated: 1763316000000, author: 'TraderBot' } });
   document.getElementById('ex3').textContent = curl('api_delete', { p_key: 'fmk_…', p_id: 'bot-trader-1' });
+  document.getElementById('ex4').textContent = curl('api_scores', { p_key: 'fmk_…', p_limit: 10 });
+  document.getElementById('ex5').textContent = curl('api_game_log', { p_key: 'fmk_…', p_after: 117 });
+  document.getElementById('ex6').textContent = curl('api_give_points', { p_key: 'fmk_…', p_username: 'someuser', p_amount: -500, p_note: 'Bought: NVG' });
 </script>
 </body>
 </html>

@@ -322,6 +322,54 @@
   .modal h2 { font-size: 19px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 4px; }
   .modal h3 { font-size: 13px; margin: 18px 0 4px; color: var(--accent); }
   .modal p { color: var(--dim); font-size: 12.5px; margin: 4px 0 0; }
+  /* ---------- minigames ---------- */
+  .gwallet { display: flex; align-items: baseline; gap: 6px; margin: 2px 0 10px; }
+  .gwallet b { font-size: 26px; font-variant-numeric: tabular-nums; color: var(--accent); }
+  .gpick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .gpick button { padding: 12px 6px; font-size: 13px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .gpick button span { font-size: 26px; line-height: 1.1; }
+  .gpick button small { font-weight: 400; color: var(--dim); font-size: 11px; }
+  .srow { display: grid; grid-template-columns: 26px 1fr auto; gap: 2px 8px; align-items: center; padding: 6px 4px; border-bottom: 1px solid #ffffff0d; font-size: 13px; }
+  .srow.me { background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 6px; }
+  .srow .rk { color: var(--dim); font-variant-numeric: tabular-nums; text-align: right; }
+  .srow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .srow .pt { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .srow .bw { grid-column: 2 / -1; font-size: 11px; color: var(--dim); margin-top: -3px; }
+  .gbox { width: 420px; }
+  .ghead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .ghead h2 { flex: 1; margin: 0; }
+  .gpts { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .reels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; border-radius: 14px; background: var(--bg); border: 1px solid var(--line); box-shadow: inset 0 4px 14px #0008; }
+  .reel { height: 92px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(#0000, #ffffff0a 50%, #0000), var(--panel2); border: 1px solid var(--line); font-size: 50px; overflow: hidden; }
+  .reel.spin span { filter: blur(1.5px); transform: translateY(4px); }
+  .reel.land span { animation: gLand .25s ease-out; }
+  .reel.hit { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .reel span { display: block; line-height: 1; }
+  @keyframes gLand { 0% { transform: translateY(-14px); } 70% { transform: translateY(3px); } 100% { transform: none; } }
+  .gname { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; font-size: 11px; color: var(--dim); margin-top: 4px; min-height: 15px; }
+  .gmsg { text-align: center; font-weight: 600; min-height: 22px; margin: 10px 0 8px; }
+  .gmsg.win { color: var(--accent); }
+  .gmsg.big { font-size: 17px; animation: gPulse .9s ease-in-out 2; }
+  @keyframes gPulse { 50% { transform: scale(1.08); } }
+  .gbets { display: flex; gap: 4px; align-items: center; margin-bottom: 8px; }
+  .gbets > span { font-size: 12px; color: var(--dim); margin-right: 4px; }
+  .gbets button { flex: 1; padding: 5px 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .gbig { width: 100%; padding: 11px; font-size: 15px; }
+  .crates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .crate { height: 118px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; border-radius: 12px; }
+  .crate .ce { font-size: 46px; line-height: 1; }
+  .crate.shake .ce { animation: gShake .12s linear infinite; }
+  .crate:disabled { opacity: 1; }
+  .crate.open { cursor: default; }
+  .crate.open:not(.picked) { opacity: .5; }
+  .crate.picked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .crate b { font-variant-numeric: tabular-nums; }
+  @keyframes gShake { 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
+  .paytable { margin-top: 12px; font-size: 12.5px; }
+  .paytable summary { cursor: pointer; color: var(--dim); }
+  .paytable table { width: 100%; border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .paytable td { padding: 3px 4px; border-bottom: 1px solid #ffffff0d; }
+  .paytable td:not(:first-child) { text-align: right; }
   #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 4000; background: var(--panel2); border: 1px solid var(--line); padding: 8px 14px; border-radius: 8px; display: none; max-width: 90vw; }
 
   @media (max-width: 760px) {
@@ -396,6 +444,7 @@
       <button data-tab="map" class="on">🗺️ Map</button>
       <button data-tab="faction">🏴 Faction <span class="dot" id="invDot" style="display:none"></span></button>
       <button data-tab="server">🖥️ Server</button>
+      <button data-tab="games">🎲 Games</button>
     </nav>
   </header>
 
@@ -530,6 +579,7 @@
       </section>
       <section class="pane" id="paneFaction"></section>
       <section class="pane" id="paneServer"></section>
+      <section class="pane" id="paneGames"></section>
     </div>
   </div>
 
@@ -646,6 +696,12 @@
     <div class="formbtns"><button id="spCreate">Create server</button><button id="spClose" style="display:none">Cancel</button></div>
     <div class="err" id="spErr"></div>
     <p style="margin-top:14px"><button class="linkbtn" id="spLogout">Log out</button></p>
+  </div>
+</div>
+<div id="game" class="modal">
+  <div class="box gbox">
+    <div class="ghead"><h2 id="gTitle"></h2><span class="gpts" id="gPts"></span><button id="gClose" class="linkbtn" aria-label="Close">✕</button></div>
+    <div id="gBody"></div>
   </div>
 </div>
 <div id="toast"></div>
@@ -1740,6 +1796,7 @@ function showTab(t) {
   for (const p of document.querySelectorAll('.pane')) p.classList.toggle('show', p.id === 'pane' + t[0].toUpperCase() + t.slice(1));
   if (t === 'faction') renderFaction();
   if (t === 'server') renderServer();
+  if (t === 'games') renderGames();
 }
 function setShape(s) {
   shape = s; ls.set('fm:shape', s);
@@ -2398,6 +2455,12 @@ map.on('contextmenu', e => {
 map.on('click movestart zoomstart', closeCtx);
 document.addEventListener('mousedown', e => { if (!$('ctx').contains(e.target)) closeCtx(); }, true);
 document.addEventListener('keydown', e => {
+  // a game is open: Esc closes it, Space / Enter plays, and nothing reaches the map (no stray undo or delete)
+  if ($('game').classList.contains('show')) {
+    if (e.key === 'Escape') closeGame();
+    else if ((e.key === ' ' || e.key === 'Enter') && !e.repeat && !/BUTTON|INPUT/.test(document.activeElement?.tagName)) { e.preventDefault(); gameKey(); }
+    return;
+  }
   if (e.key === 'Escape' && $('keys').classList.contains('show')) { $('keys').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('auth').classList.contains('show')) { $('auth').classList.remove('show'); return; }
   if (e.key === 'Escape' && $('srvpick').classList.contains('show')) { $('srvpick').classList.remove('show'); return; }
@@ -3243,10 +3306,12 @@ async function afterLogin(u) {
 function refreshPanes() {
   if ($('paneFaction').classList.contains('show')) renderFaction();
   if ($('paneServer').classList.contains('show')) renderServer();
+  if ($('paneGames').classList.contains('show')) renderGames();
 }
 async function leftServer() {
   ls.set('fm:server', null);
   if (channel) sb.removeChannel(channel);
+  gamesReset();
   channel = null; server = null; myRole = null; myFac = null; ONLINE = false; showAnnounce();
   factions.clear(); notes.clear(); feats.clear(); closeInfo();
   await localStore.init(); renderAll(); refreshPanes();
@@ -3417,6 +3482,7 @@ function onFeatRow(msg) {
 }
 function subscribe() {
   if (channel) sb.removeChannel(channel);
+  gamesReset();
   const sid = server.id, f = `server_id=eq.${sid}`;
   channel = sb.channel('srv-' + sid)
     // DELETE events only carry the primary key, so a server_id filter never matches them: listen unfiltered
@@ -3709,6 +3775,249 @@ function renderServer() {
         if (error) return toast(error.message);
         await leftServer();
       } })));
+}
+
+// ---------- minigames + score sheet ----------
+// On a server the database rolls every result (db/supabase-v4-games.sql: play_game), so the score sheet can't be faked
+// and server apps can trust it. These tables MUST match that file; here they're used for display and for guest play.
+const SLOT_SYMS = [
+  { e: '🧟', n: 'Infected', w: 14, p3: 0, p2: 0 },
+  { e: '🍎', n: 'Apple', w: 16, p3: 5, p2: 1 },
+  { e: '🥫', n: 'Baked beans', w: 13, p3: 10, p2: 2 },
+  { e: '🩹', n: 'Bandage', w: 11, p3: 15, p2: 2 },
+  { e: '🔋', n: 'Car battery', w: 9, p3: 25, p2: 4 },
+  { e: '🪓', n: 'Firefighter axe', w: 7, p3: 40, p2: 5 },
+  { e: '💉', n: 'Morphine', w: 5, p3: 80, p2: 7 },
+  { e: '🦺', n: 'Plate carrier', w: 3, p3: 200, p2: 12 },
+  { e: '🚁', n: 'Heli crash loot', w: 2, p3: 750, p2: 25 },
+];
+const CRATE_LOOT = [
+  { e: '🕸️', n: 'Empty', w: 47, m: 0 },
+  { e: '🥫', n: 'Canned food', w: 16, m: 0.5 },
+  { e: '💊', n: 'Medical supplies', w: 14, m: 1 },
+  { e: '🔧', n: 'Car parts', w: 12, m: 2 },
+  { e: '🎒', n: 'Assault backpack', w: 6, m: 3 },
+  { e: '🦺', n: 'Plate carrier', w: 4, m: 5 },
+  { e: '🚁', n: 'Heli crash loot', w: 1, m: 10 },
+];
+const BETS = [10, 25, 50, 100, 250], START_POINTS = 1000, AIRDROP = 250, AIRDROP_MS = 20 * 3600e3;
+const GAME_NAMES = { slots: '🎰 Loot slots', crates: '📦 Airdrop crates' };
+const wallets = new Map(); // user_id -> row, current server
+let gamesFor = null, gamesDb = null, gamesChannel = null, gameOpen = null, gameBusy = false;
+const gamesLocal = () => !ONLINE || gamesDb === false;
+const nf = n => Number(n || 0).toLocaleString();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rollW = w => { const t = w.reduce((a, b) => a + b, 0); let r = crypto.getRandomValues(new Uint32Array(1))[0] % t; for (let i = 0; i < w.length; i++) { if (r < w[i]) return i; r -= w[i]; } return w.length - 1; };
+function slotWin(reels, bet) {
+  const [a, b, c] = reels;
+  if (a === b && b === c) return bet * SLOT_SYMS[a].p3;
+  if (a === b || a === c) return bet * SLOT_SYMS[a].p2;
+  if (b === c) return bet * SLOT_SYMS[b].p2;
+  return 0;
+}
+function myWallet() {
+  if (gamesLocal()) return { points: START_POINTS, plays: 0, wagered: 0, won: 0, best_win: 0, airdrop_at: null, ...ls.get('fm:gw', {}) };
+  return wallets.get(me.id) || { user_id: me.id, points: START_POINTS, plays: 0, wagered: 0, won: 0, best_win: 0, airdrop_at: null };
+}
+function gamesReset() {
+  if (gamesChannel) { sb.removeChannel(gamesChannel); gamesChannel = null; }
+  gamesFor = null; gamesDb = null; wallets.clear(); closeGame();
+}
+const gameErr = error => /play_game|claim_airdrop|game_wallets|reset_scores/.test(error.message || '') && /find|exist|schema cache/i.test(error.message || '')
+  ? 'Games need a database update: a server admin has to run db/supabase-v4-games.sql in Supabase.' : error.message;
+async function loadGames() {
+  const sid = server.id; gamesFor = sid;
+  const { data, error } = await sb.from('game_wallets').select('*').eq('server_id', sid);
+  if (gamesFor !== sid) return;
+  if (error) { gamesDb = false; console.warn('games:', error.message); refreshGames(); return; }
+  gamesDb = true; wallets.clear();
+  for (const w of data) wallets.set(w.user_id, w);
+  await loadProfiles(data.map(w => w.user_id));
+  // live score sheet. Its own channel, so a database without the games tables can't break map sync.
+  gamesChannel = sb.channel('games-' + sid)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'game_wallets', filter: `server_id=eq.${sid}` }, async msg => {
+      if (msg.new?.user_id) { wallets.set(msg.new.user_id, msg.new); await loadProfiles([msg.new.user_id]); refreshGames(); }
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'game_wallets' }, msg => {
+      if (msg.old?.server_id === sid || !msg.old?.server_id) { if (msg.old?.user_id) wallets.delete(msg.old.user_id); refreshGames(); }
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_log', filter: `server_id=eq.${sid}` }, async msg => {
+      const l = msg.new; if (!l) return;
+      if (l.kind === 'reset') { wallets.clear(); refreshGames(); if (l.user_id !== me.id) toast('🎲 The score sheet was reset'); return; }
+      if (l.user_id === me.id) {
+        if (l.kind === 'grant') toast(`${l.amount > 0 ? '🎁 +' : '💸 '}${nf(l.amount)} points${l.note ? ' · ' + l.note : ''}`);
+        return;
+      }
+      await loadProfiles([l.user_id]);
+      if (l.kind === 'jackpot') toast(`🚁 ${uname(l.user_id)} hit the jackpot on ${GAME_NAMES[l.game] || l.game}: +${nf(l.amount)}!`);
+    })
+    .subscribe();
+  refreshGames();
+}
+function refreshGames() {
+  if ($('paneGames').classList.contains('show')) renderGames();
+  if (gameOpen) $('gPts').textContent = nf(myWallet().points) + ' pts';
+}
+function airdropLeft() { const at = myWallet().airdrop_at; return at ? Math.max(0, new Date(at).getTime() + AIRDROP_MS - Date.now()) : 0; }
+async function claimAirdrop() {
+  if (gamesLocal()) {
+    if (airdropLeft()) return;
+    const w = myWallet(); w.points += AIRDROP; w.airdrop_at = new Date().toISOString(); ls.set('fm:gw', w);
+  } else {
+    const { data, error } = await sb.rpc('claim_airdrop', { p_server: server.id });
+    if (error) return toast(gameErr(error));
+    wallets.set(me.id, { ...myWallet(), points: data.points, airdrop_at: data.airdrop_at });
+  }
+  toast(`🪂 Airdrop landed: +${AIRDROP} points`); refreshGames();
+}
+function renderGames() {
+  const box = $('paneGames'); box.replaceChildren();
+  if (ONLINE && gamesFor !== server.id) loadGames();
+  const w = myWallet(), left = airdropLeft();
+  const totMin = Math.ceil(left / 60e3), hrs = Math.floor(totMin / 60), mins = totMin % 60;
+  box.append(el('div', { className: 'card' },
+    el('div', { className: 'dim', textContent: gamesLocal() ? (ONLINE ? 'Practice points (this browser only)' : 'Your points (this browser only)') : `Your points on ${server.name}` }),
+    el('div', { className: 'gwallet' }, el('b', { textContent: nf(w.points) }), el('span', { className: 'dim', textContent: 'pts' })),
+    el('div', { className: 'gpick' },
+      el('button', { onclick: () => openGame('slots') }, el('span', { textContent: '🎰' }), 'Loot slots', el('small', { textContent: 'Line up DayZ loot' })),
+      el('button', { onclick: () => openGame('crates') }, el('span', { textContent: '📦' }), 'Airdrop crates', el('small', { textContent: 'Pick 1 of 3 crates' }))),
+    el('button', { style: 'width:100%;margin-top:6px', disabled: left > 0, onclick: claimAirdrop,
+      textContent: left > 0 ? `🪂 Next airdrop in ${hrs ? hrs + 'h ' : ''}${mins}m` : `🪂 Claim airdrop · +${AIRDROP} points` })));
+  if (ONLINE && gamesDb === false) {
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: 'Score sheet not set up yet' }),
+      el('p', { className: 'dim', textContent: isAdmin() ? 'Run db/supabase-v4-games.sql in Supabase → SQL Editor to turn on the server score sheet. Until then, games use practice points saved in this browser.'
+        : 'A server admin needs to switch on the score sheet. Until then, games use practice points saved in this browser.' })));
+    return;
+  }
+  if (!ONLINE) {
+    box.append(el('h2', { textContent: 'Score sheet' }),
+      el('p', { className: 'dim', textContent: 'Log in and join a server to play for your server\'s score sheet. Results are rolled by the server, so the sheet can be trusted by bots and server apps.' }),
+      HAS_SB && !me ? el('button', { className: 'primary', textContent: 'Log in', onclick: () => showAuth('login') }) : '');
+    return;
+  }
+  const rows = [...wallets.values()].sort((a, b) => b.points - a.points || (a.updated_at < b.updated_at ? -1 : 1));
+  box.append(el('h2', {}, 'Score sheet ', el('span', { className: 'secn', textContent: rows.length ? '· ' + rows.length : '' }),
+    isAdmin() && rows.length ? el('button', { className: 'linkbtn h2btn', textContent: 'reset', title: 'Wipe everyone\'s points back to ' + START_POINTS, onclick: async () => {
+      if (!confirm(`Reset the score sheet for ${server.name}? Everyone goes back to ${START_POINTS} points. This can't be undone.`)) return;
+      if (await rpc('reset_scores', { p_server: server.id }, 'Score sheet reset')) { wallets.clear(); refreshGames(); }
+    } }) : ''));
+  if (!rows.length) box.append(el('div', { className: 'empty', textContent: 'Nobody has played on this server yet. Your first game puts you on the sheet.' }));
+  rows.forEach((r, i) => {
+    const fm = fmembers.find(x => x.user_id === r.user_id), fac = fm && factions.get(fm.faction_id);
+    box.append(el('div', { className: 'srow' + (r.user_id === me.id ? ' me' : '') },
+      el('span', { className: 'rk', textContent: ['🥇', '🥈', '🥉'][i] || i + 1 }),
+      el('span', { className: 'nm' }, uname(r.user_id) + (r.user_id === me.id ? ' (you)' : ''), fac?.tag ? el('span', { className: 'dim', textContent: ` [${fac.tag}]` }) : ''),
+      el('span', { className: 'pt', textContent: nf(r.points) }),
+      el('span', { className: 'bw', textContent: `${nf(r.plays)} game${r.plays === 1 ? '' : 's'}${r.best_win ? ` · best win ${nf(r.best_win)}${r.best_game ? ' on ' + (GAME_NAMES[r.best_game] || r.best_game).replace(/^\S+\s/, '').toLowerCase() : ''}` : ''}` })));
+  });
+  box.append(el('p', { className: 'dim', style: 'margin-top:12px' }, 'Bots and server apps can read this sheet and give or take points, e.g. reward kills or trade points for in-game loot. ',
+    el('a', { href: 'api.html#games', target: '_blank', className: 'linkbtn', textContent: 'API ↗' })));
+}
+async function gamePlay(game, bet, pick = 0) {
+  if (gamesLocal()) {
+    const w = myWallet();
+    if (w.points < bet) { toast('Not enough points. Grab the airdrop or wait for it to come back.'); return null; }
+    let res, win;
+    if (game === 'slots') { const reels = [0, 0, 0].map(() => rollW(SLOT_SYMS.map(s => s.w))); win = slotWin(reels, bet); res = { reels }; }
+    else { const crates = [0, 0, 0].map(() => rollW(CRATE_LOOT.map(c => c.w))); win = Math.floor(bet * CRATE_LOOT[crates[pick]].m); res = { crates, pick }; }
+    Object.assign(w, { points: w.points - bet + win, plays: w.plays + 1, wagered: w.wagered + bet, won: w.won + win, best_win: Math.max(w.best_win, win) });
+    ls.set('fm:gw', w);
+    return { ...res, game, bet, win, points: w.points };
+  }
+  const { data, error } = await sb.rpc('play_game', { p_server: server.id, p_game: game, p_bet: bet, p_pick: pick });
+  if (error) { toast(gameErr(error)); return null; }
+  const w = myWallet();
+  wallets.set(me.id, { ...w, points: data.points, plays: w.plays + 1, wagered: w.wagered + bet, won: w.won + data.win,
+    best_win: Math.max(w.best_win, data.win), best_game: data.win > w.best_win ? game : w.best_game, updated_at: new Date().toISOString() });
+  return data;
+}
+function closeGame() { gameOpen = null; $('game').classList.remove('show'); if ($('paneGames').classList.contains('show')) renderGames(); }
+$('gClose').onclick = closeGame;
+$('game').addEventListener('mousedown', e => { if (e.target === $('game') && !gameBusy) closeGame(); });
+let gameKey = () => {};
+function betPicker() {
+  let bet = Math.min(ls.get('fm:gbet', 10), Math.max(BETS[0], myWallet().points));
+  if (!BETS.includes(bet)) bet = [...BETS].reverse().find(b => b <= bet) || BETS[0];
+  const row = el('div', { className: 'gbets' }, el('span', { textContent: 'Bet' }));
+  for (const b of BETS) row.append(el('button', { type: 'button', className: b === bet ? 'on' : '', textContent: b, onclick: e => {
+    if (gameBusy) return; bet = b; ls.set('fm:gbet', b); for (const x of row.querySelectorAll('button')) x.classList.toggle('on', x === e.currentTarget);
+  } }));
+  return { row, get: () => bet };
+}
+function openGame(game) {
+  gameOpen = game; gameBusy = false;
+  $('gTitle').textContent = GAME_NAMES[game];
+  $('gPts').textContent = nf(myWallet().points) + ' pts';
+  const body = $('gBody'); body.replaceChildren();
+  const bets = betPicker(), msg = el('div', { className: 'gmsg' });
+  const setMsg = (t, cls = '') => { msg.textContent = t; msg.className = 'gmsg ' + cls; };
+  if (game === 'slots') {
+    const reels = [0, 1, 2].map(() => el('div', { className: 'reel' }, el('span', { textContent: SLOT_SYMS[1 + Math.floor(Math.random() * 8)].e })));
+    const names = el('div', { className: 'gname' });
+    const spin = el('button', { className: 'primary gbig', textContent: 'Spin' });
+    const go = async () => {
+      if (gameBusy) return; gameBusy = true; spin.disabled = true; setMsg('');
+      const stopped = [false, false, false];
+      names.replaceChildren();
+      reels.forEach(r => { r.classList.remove('hit', 'land'); r.classList.add('spin'); });
+      const tick = setInterval(() => reels.forEach((r, i) => { if (!stopped[i]) r.firstChild.textContent = SLOT_SYMS[Math.floor(Math.random() * SLOT_SYMS.length)].e; }), 70);
+      const [res] = await Promise.all([gamePlay('slots', bets.get()), sleep(550)]);
+      if (!res) { clearInterval(tick); reels.forEach(r => r.classList.remove('spin')); gameBusy = false; spin.disabled = false; return; }
+      for (let i = 0; i < 3; i++) {
+        await sleep(i ? 300 : 120);
+        stopped[i] = true; const r = reels[i];
+        r.firstChild.textContent = SLOT_SYMS[res.reels[i]].e; r.classList.remove('spin'); void r.offsetWidth; r.classList.add('land');
+      }
+      clearInterval(tick);
+      names.replaceChildren(...res.reels.map(i => el('span', { textContent: SLOT_SYMS[i].n })));
+      const [a, b, c] = res.reels, three = a === b && b === c;
+      const hitSym = three ? a : a === b || a === c ? a : b === c ? b : -1;
+      if (res.win > 0) reels.forEach((r, i) => { if (res.reels[i] === hitSym) r.classList.add('hit'); });
+      const s = SLOT_SYMS[hitSym];
+      if (res.win > 0) setMsg(`${three ? 'Three' : 'Two'} × ${s.e} ${s.n} · +${nf(res.win)}`, 'win' + (res.win >= res.bet * 10 ? ' big' : ''));
+      else setMsg(three && a === 0 ? '🧟 A horde. Nothing this time.' : hitSym === 0 ? '🧟 Infected. Nothing this time.' : 'No match');
+      $('gPts').textContent = nf(res.points) + ' pts';
+      gameBusy = false; spin.disabled = false; spin.focus();
+    };
+    spin.onclick = go; gameKey = go;
+    const pay = el('table');
+    for (const s of SLOT_SYMS.slice().reverse()) if (s.p3) pay.append(el('tr', {}, el('td', { textContent: `${s.e} ${s.n}` }), el('td', { textContent: `3 × ${s.p3}×` }), el('td', { className: 'dim', textContent: `2 × ${s.p2}×` })));
+    pay.append(el('tr', {}, el('td', { textContent: '🧟 Infected' }), el('td', { className: 'dim', colSpan: 2, textContent: 'never pays' })));
+    body.append(el('div', { className: 'reels' }, ...reels), names, msg, bets.row, spin,
+      el('details', { className: 'paytable' }, el('summary', { textContent: 'What pays (times your bet)' }), pay,
+        el('p', { className: 'dim', style: 'margin:6px 0 0', textContent: 'Any two the same pays the smaller amount. Space spins.' })));
+  } else {
+    const crates = [0, 1, 2].map(i => el('button', { type: 'button', className: 'crate' }, el('span', { className: 'ce', textContent: '📦' }), el('span', { textContent: `Crate ${i + 1}` })));
+    const again = el('button', { className: 'primary gbig', textContent: 'Drop new crates', style: 'display:none' });
+    const reset = () => {
+      crates.forEach((c, i) => { c.className = 'crate'; c.disabled = false; c.replaceChildren(el('span', { className: 'ce', textContent: '📦' }), el('span', { textContent: `Crate ${i + 1}` })); });
+      again.style.display = 'none'; setMsg('Pick a crate');
+    };
+    const pick = async i => {
+      if (gameBusy) return; gameBusy = true;
+      crates.forEach(c => c.disabled = true); crates[i].classList.add('shake'); setMsg('');
+      const [res] = await Promise.all([gamePlay('crates', bets.get(), i), sleep(700)]);
+      crates[i].classList.remove('shake');
+      if (!res) { crates.forEach(c => c.disabled = false); gameBusy = false; return; }
+      res.crates.forEach((li, j) => {
+        const L0 = CRATE_LOOT[li], c = crates[j];
+        c.classList.add('open'); if (j === res.pick) c.classList.add('picked');
+        c.replaceChildren(el('span', { className: 'ce', textContent: L0.e }), el('span', { textContent: L0.n }), el('b', { textContent: L0.m ? `${L0.m}×` : '—' }));
+      });
+      const got = CRATE_LOOT[res.crates[res.pick]];
+      setMsg(res.win > 0 ? `${got.e} ${got.n} · +${nf(res.win)}` : `${got.e} Empty. Nothing this time.`, res.win > res.bet ? 'win' + (res.win >= res.bet * 5 ? ' big' : '') : '');
+      $('gPts').textContent = nf(res.points) + ' pts';
+      again.style.display = ''; again.focus(); gameBusy = false;
+    };
+    crates.forEach((c, i) => c.onclick = () => pick(i));
+    again.onclick = reset; gameKey = () => { if (again.style.display !== 'none') reset(); };
+    const pay = el('table');
+    for (const L0 of CRATE_LOOT.slice().reverse()) pay.append(el('tr', {}, el('td', { textContent: `${L0.e} ${L0.n}` }), el('td', { textContent: L0.m ? `${L0.m}×` : 'nothing' }), el('td', { className: 'dim', textContent: `${L0.w}%` })));
+    body.append(el('div', { className: 'crates' }, ...crates), msg, bets.row, again,
+      el('details', { className: 'paytable' }, el('summary', { textContent: 'What can be inside (times your bet, chance)' }), pay));
+    reset();
+  }
+  $('game').classList.add('show');
 }
 
 // ---------- export / import ----------

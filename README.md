@@ -1,6 +1,6 @@
 ﻿# Tunnel Rats Map
 
-Shared DayZ faction map: accounts, servers, factions, markers, compounds, notes, road GPS and an API.
+Shared DayZ faction map: accounts, servers, factions, markers, compounds, notes, road GPS, minigames with a score sheet, and an API.
 Map tiles come from iZurvive; all player data lives in Supabase.
 
 ## How it runs
@@ -18,6 +18,7 @@ Map tiles come from iZurvive; all player data lives in Supabase.
 | `flags.js` | Armband flags and their preset colours |
 | `db/supabase-v2.sql` | Database schema (already run). Kept for reference / new setups |
 | `db/supabase-v3-announcements.sql` | Adds pinned server announcements (already run). Run after v2 on new setups |
+| `db/supabase-v4-games.sql` | Minigames and the per-server score sheet (play_game, airdrops, api_scores / api_game_log / api_give_points). Run after v3 |
 | `db/supabase-setup.sql` | The old v1 table, still read by "Import from old version" |
 
 ## Run locally
