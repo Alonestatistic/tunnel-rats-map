@@ -94,7 +94,7 @@ Content-Type: application/json</code></pre>
 </table>
 
 <h2 id="games">4. Loot merge and the leaderboard</h2>
-<p><b>Loot merge</b> is the game in the <b>Games</b> tab, played on the map: loot drops around towns, and players drag an item onto an identical one to upgrade it (rag → bandage → … → heli crash loot). Each merge is one <b>upgrade</b> and earns points. Each server has its own leaderboard, ranked by upgrades. The database holds every board and checks every merge, so the numbers can be trusted. Use these calls to tie it into your server:</p>
+<p><b>Loot merge</b> is the game in the <b>Games</b> tab, played on the map: loot drops around towns, and players drag an item onto an identical one to upgrade it (rag → bandage → … → heli crash loot). Each merge is one <b>upgrade</b> and earns points. Each server has its own leaderboard, ranked by upgrades. The database holds every board and checks every merge, so the numbers can be trusted. It's <b>off by default</b>: a server owner or admin allows it in the <b>Server</b> tab, then each player turns on the Games tab in their Settings. Use these calls to tie it into your server:</p>
 <ul>
   <li>Post the leaderboard to Discord or a server website.</li>
   <li>Announce heli crash loot as players reach it.</li>

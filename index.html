@@ -452,7 +452,7 @@
       <button data-tab="map" class="on">🗺️ Map</button>
       <button data-tab="faction">🏴 Faction <span class="dot" id="invDot" style="display:none"></span></button>
       <button data-tab="server">🖥️ Server</button>
-      <button data-tab="games">🎲 Games</button>
+      <button data-tab="games" style="display:none">🎲 Games</button>
     </nav>
   </header>
 
@@ -582,7 +582,7 @@
         <input id="textSize" type="range" min="0.85" max="1.4" step="0.05">
         <label for="zoomSpeed">Scroll zoom speed: <span id="zoomSpeedVal"></span></label>
         <input id="zoomSpeed" type="range" min="0.25" max="4" step="0.25">
-        <div class="checks" style="grid-template-columns:1fr;margin-top:8px"><label><input type="checkbox" id="trToggle"> Show English meanings of place names</label><label><input type="checkbox" id="hovToggle"> Preview cards when hovering markers</label><label><input type="checkbox" id="snapToggle"> Snap to roads and other areas while drawing (hold Alt to skip)</label></div>
+        <div class="checks" style="grid-template-columns:1fr;margin-top:8px"><label><input type="checkbox" id="trToggle"> Show English meanings of place names</label><label><input type="checkbox" id="hovToggle"> Preview cards when hovering markers</label><label><input type="checkbox" id="snapToggle"> Snap to roads and other areas while drawing (hold Alt to skip)</label><label><input type="checkbox" id="gamesToggle"> Show the 🎲 Games tab (Loot merge minigame)<span id="gamesNote" class="dim"></span></label></div>
        </div></div>
       </section>
       <section class="pane" id="paneFaction"></section>
@@ -3305,6 +3305,7 @@ function refreshPanes() {
   if ($('paneFaction').classList.contains('show')) renderFaction();
   if ($('paneServer').classList.contains('show')) renderServer();
   if ($('paneGames').classList.contains('show')) renderGames();
+  applyGamesVis();
 }
 async function leftServer() {
   ls.set('fm:server', null);
@@ -3402,7 +3403,7 @@ async function enterServer(sid) {
   ls.set('fm:server', sid);
   const want = ls.get('fm:map:' + sid, null) || s.server.map;
   if (want !== MAPDEF.id && MAPS.some(m => m.id === want)) { ls.set('fm:curmap', want); location.reload(); return; }
-  server = s.server; myRole = s.role; ONLINE = true;
+  server = s.server; myRole = s.role; ONLINE = true; applyGamesVis();
   $('srvSel').value = sid;
   $('who').textContent = `${me.username} · ${myRole}`;
   closeForm(true); closeInfo();
@@ -3508,7 +3509,7 @@ function subscribe() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'faction_members', filter: f }, metaChanged)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: f }, metaChanged)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'faction_invites', filter: `user_id=eq.${me.id}` }, metaChanged)
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers', filter: `id=eq.${sid}` }, msg => { if (msg.new) { server = { ...server, ...msg.new }; loadServers(); showAnnounce(); if ($('paneServer').classList.contains('show')) renderServer(); } })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers', filter: `id=eq.${sid}` }, msg => { if (msg.new) { server = { ...server, ...msg.new }; loadServers(); showAnnounce(); applyGamesVis(); if ($('paneServer').classList.contains('show')) renderServer(); } })
     .subscribe(st => {
       if (st === 'SUBSCRIBED') setStatus('Live', 'live');
       else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') setStatus('Reconnecting…', 'err');
@@ -3687,6 +3688,16 @@ function renderServer() {
       el('div', { className: 'formbtns' },
         el('button', { className: 'primary', textContent: server.announcement ? 'Update' : 'Pin it', onclick: () => saveAnn(an.value) }),
         server.announcement ? el('button', { textContent: 'Remove', onclick: () => saveAnn('') }) : '')));
+    // Loot merge is off until an admin allows it here; players then still opt in under Settings
+    const gon = el('input', { type: 'checkbox', checked: !!server.games, onchange: async e => {
+      const v = e.target.checked;
+      const { error } = await sb.from('servers').update({ games: v }).eq('id', server.id);
+      if (error) { e.target.checked = !v; return toast(/games/.test(error.message) ? 'The database needs updating first: run db/supabase-v4-games.sql in Supabase' : error.message); }
+      server.games = v; applyGamesVis(); toast(v ? 'Loot merge allowed on this server' : 'Loot merge switched off on this server');
+    } });
+    box.append(el('div', { className: 'card' }, el('h3', { textContent: '🎒 Loot merge minigame' }),
+      el('label', { className: 'row', style: 'gap:6px;margin:0' }, gon, 'Allow it on this server'),
+      el('div', { className: 'dim', style: 'font-size:12px;margin-top:4px', textContent: 'Off by default. When allowed, players can turn on the Games tab in their Settings and play for this server\'s leaderboard.' })));
   } else if (server.announcement) {
     box.append(el('div', { className: 'card' }, el('h3', { textContent: '📌 Pinned announcement' }), el('div', { style: 'white-space:pre-wrap', textContent: server.announcement }),
       el('button', { className: 'linkbtn', textContent: 'Show on the map again', onclick: () => { ls.set('fm:annSeen:' + server.id, null); showAnnounce(); } })));
@@ -4096,6 +4107,22 @@ function mergeStop() {
   refreshGames();
 }
 $('mhStop').onclick = mergeStop;
+// Off by default twice over: on a server an admin must allow it (servers.games), and each player opts in under Settings
+var gamesOptIn;   // var + the check below: refreshPanes / subscribe can call this before this part of the script has run
+const gamesAllowed = () => !ONLINE || !!server?.games;
+function applyGamesVis() {
+  if (gamesOptIn === undefined) return;
+  const show = gamesOptIn && gamesAllowed();
+  $('tabbar').querySelector('[data-tab=games]').style.display = show ? '' : 'none';
+  $('gamesNote').textContent = ONLINE && !server?.games ? ' · switched off on this server until an admin allows it' : '';
+  if (show) return;
+  if (mergeOn) { mergeStop(); if (gamesOptIn) toast('Loot merge was switched off on this server'); }
+  if ($('paneGames').classList.contains('show')) showTab('map');
+}
+gamesOptIn = ls.get('fm:games', false);
+$('gamesToggle').checked = gamesOptIn;
+$('gamesToggle').onchange = e => { gamesOptIn = e.target.checked; ls.set('fm:games', gamesOptIn); applyGamesVis(); };
+applyGamesVis();
 $('mhGather').onclick = () => {
   for (const m of lootMk.values()) { const p = dropSpot(); mpos[m.item.i] = p; m.setLatLng(ll(p)); }
   savePos();

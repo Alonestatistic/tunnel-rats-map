@@ -8,6 +8,9 @@
 -- The board lives here and every merge is checked here, so nobody can fake upgrades or points from their browser.
 -- Server apps (Discord bots, DayZ server tools) read the leaderboard and give or take points through the api_* calls.
 --
+-- Off by default: a server owner or admin switches it on for their server (servers.games, in the Server tab),
+-- and then each player still chooses to show the Games tab.
+--
 -- The item chains and numbers below must match MERGE in index.html (that copy is only used for display and guest play).
 
 -- an earlier draft of this file had slots and crates; remove them if they were ever created
@@ -16,6 +19,8 @@ drop function if exists public.claim_airdrop(uuid);
 drop function if exists public._game_wallet(uuid, uuid);
 drop function if exists public._game_roll(int[]);
 drop table if exists public.game_wallets;
+
+alter table public.servers add column if not exists games boolean not null default false;
 
 create table if not exists public.game_players (
   server_id uuid not null references public.servers on delete cascade,
@@ -106,6 +111,7 @@ declare g game_players;
 begin
   if auth.uid() is null then raise exception 'Log in first'; end if;
   if srv_role(p_server) is null then raise exception 'Join the server first'; end if;
+  if not coalesce((select games from servers where id = p_server), false) then raise exception 'Loot merge is switched off on this server'; end if;
   perform _merge_fill(p_server, auth.uid());
   select * into g from game_players where server_id = p_server and user_id = auth.uid();
   return jsonb_build_object('board', g.board, 'points', g.points, 'merges', g.merges, 'helis', g.helis, 'best_tier', g.best_tier,
@@ -126,6 +132,7 @@ declare
 begin
   if auth.uid() is null then raise exception 'Log in first'; end if;
   if srv_role(p_server) is null then raise exception 'Join the server first'; end if;
+  if not coalesce((select games from servers where id = p_server), false) then raise exception 'Loot merge is switched off on this server'; end if;
   g := _merge_player(p_server, auth.uid());
   if p_a = p_b then raise exception 'Pick two different items'; end if;
   select e into ea from jsonb_array_elements(g.board) e where (e->>'i')::int = p_a;
