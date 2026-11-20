@@ -1,6 +1,6 @@
 ﻿# Tunnel Rats Map
 
-Shared DayZ faction map: accounts, servers, factions, markers, compounds, notes, road GPS, Loot merge (an on-map minigame with a leaderboard), and an API.
+Shared DayZ faction map: accounts, servers, factions, markers, compounds, notes, road GPS, Loot merge (an on-map minigame) and Heli Crash Slots with a leaderboard, and an API.
 Map tiles come from iZurvive; all player data lives in Supabase.
 
 ## How it runs
@@ -19,6 +19,7 @@ Map tiles come from iZurvive; all player data lives in Supabase.
 | `db/supabase-v2.sql` | Database schema (already run). Kept for reference / new setups |
 | `db/supabase-v3-announcements.sql` | Adds pinned server announcements (already run). Run after v2 on new setups |
 | `db/supabase-v4-games.sql` | Loot merge and the per-server leaderboard (merge_state / merge_items, api_scores / api_game_log / api_give_points). Run after v3 |
+| `db/supabase-v5-slots.sql` | Heli Crash Slots: 5 reels, 20 paylines, rolled server-side (slot_spin). Run after v4 |
 | `db/supabase-setup.sql` | The old v1 table, still read by "Import from old version" |
 
 ## Run locally

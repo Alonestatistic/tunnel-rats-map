@@ -93,11 +93,11 @@ Content-Type: application/json</code></pre>
   <tr><td><code>updated</code>, <code>author</code></td><td>Epoch ms and a display name. Set <code>updated</code> to <code>Date.now()</code> so open maps pick up the change.</td></tr>
 </table>
 
-<h2 id="games">4. Loot merge and the leaderboard</h2>
-<p><b>Loot merge</b> is the game in the <b>Games</b> tab, played on the map: loot drops around towns, and players drag an item onto an identical one to upgrade it (rag → bandage → … → heli crash loot). Each merge is one <b>upgrade</b> and earns points. Each server has its own leaderboard, ranked by upgrades. The database holds every board and checks every merge, so the numbers can be trusted. It's <b>off by default</b>: a server owner or admin allows it in the <b>Server</b> tab, then each player turns on the Games tab in their Settings. Use these calls to tie it into your server:</p>
+<h2 id="games">4. Games and the leaderboard</h2>
+<p><b>Loot merge</b> is the game in the <b>Games</b> tab, played on the map: loot drops around towns, and players drag an item onto an identical one to upgrade it (rag → bandage → … → heli crash loot). Each merge is one <b>upgrade</b> and earns points. Each server has its own leaderboard, ranked by upgrades. The database holds every board and checks every merge, so the numbers can be trusted. It's <b>off by default</b>: a server owner or admin allows it in the <b>Server</b> tab, then each player turns on the Games tab in their Settings. <b>Heli Crash Slots</b> (5 reels, 20 paylines) bets the same points, and every spin is rolled by the database too. Use these calls to tie it into your server:</p>
 <ul>
   <li>Post the leaderboard to Discord or a server website.</li>
-  <li>Announce heli crash loot as players reach it.</li>
+  <li>Announce heli crash loot and slots jackpots as they happen.</li>
   <li>Reward things that happen in game (kills, events, playtime) with points.</li>
   <li>Let players trade points for in-game loot: your server tool takes the points with a negative amount, then spawns the item.</li>
 </ul>
@@ -113,10 +113,10 @@ Content-Type: application/json</code></pre>
   "server": { "id": "…", "name": "Badlands PvP" },
   "players": [
     { "username": "someuser", "faction": "Wolves", "faction_tag": "WLF", "upgrades": 212, "points": 18650,
-      "helis": 3, "best_item": "Heli crash cleared", "updated_at": "…" }
+      "helis": 3, "best_item": "Heli crash cleared", "slot_spins": 640, "slot_best": 2400, "updated_at": "…" }
   ]
 }</code></pre>
-<p><code>upgrades</code> is how many merges the player has made. <code>helis</code> counts heli crash loot they've made. <code>best_item</code> is the best thing they've merged so far.</p>
+<p><code>upgrades</code> is how many merges the player has made. <code>helis</code> counts heli crash loot they've made. <code>best_item</code> is the best thing they've merged so far. <code>slot_spins</code> and <code>slot_best</code> are their slots spins and biggest single slots win.</p>
 
 <h3>api_game_log: heli crashes and point changes <span class="dim">(any key)</span></h3>
 <p>Returns up to 100 events after the id you pass, oldest first. Remember the last <code>id</code> you saw and pass it next time.</p>
@@ -124,11 +124,13 @@ Content-Type: application/json</code></pre>
   <tr><th><code>kind</code></th><th>When</th></tr>
   <tr><td><code>heli</code></td><td>A player merged two top items into heli crash loot</td></tr>
   <tr><td><code>clear</code></td><td>A player merged two heli crashes for the big bonus</td></tr>
+  <tr><td><code>jackpot</code></td><td>A slots spin won 100× its total bet or more (<code>game</code> is <code>"slots"</code>)</td></tr>
+  <tr><td><code>big_win</code></td><td>A slots spin won 25× its total bet or more</td></tr>
   <tr><td><code>grant</code></td><td>Points given or taken through <code>api_give_points</code> (<code>note</code> says why)</td></tr>
   <tr><td><code>reset</code></td><td>An admin wiped the leaderboard</td></tr>
 </table>
 <pre><code id="ex5"></code></pre>
-<pre><code>[ { "id": 118, "kind": "heli", "amount": 1140, "balance": 9120, "note": null,
+<pre><code>[ { "id": 118, "kind": "heli", "game": "merge", "amount": 1140, "balance": 9120, "note": null,
     "username": "someuser", "created_at": "…" } ]</code></pre>
 <p><code>amount</code> is the points that event earned (or gave or took), <code>balance</code> the player's points after it.</p>
 
